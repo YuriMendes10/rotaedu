@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#1a3a5c"/>
+<title>RotaEdu — Painel do Comitê</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ─── RESET & BASE ─── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#EEF2F7;color:#111;min-height:100dvh;-webkit-tap-highlight-color:transparent}
+
+/* ─── TELAS ─── */
+.tela{display:none!important;min-height:100dvh}
+.tela.ativa{display:flex!important}
+.tela.ativa.bloco{display:block!important}
+
+/* ─── LOGIN ─── */
+#tela-login{align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0f2440 0%,#1a3a5c 100%)}
+.login-card{background:#fff;border-radius:20px;padding:36px 28px;width:100%;max-width:380px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+.login-logo{width:56px;height:56px;background:#1a3a5c;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.login-titulo{font-size:18px;font-weight:700;color:#111;text-align:center;margin-bottom:4px}
+.login-sub{font-size:12px;color:#888;text-align:center;line-height:1.5;margin-bottom:28px}
+.login-label{font-size:11px;font-weight:600;color:#555;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:6px}
+.login-input{width:100%;padding:13px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;background:#fafafa}
+.login-input:focus{border-color:#1a3a5c;background:#fff}
+.login-btn{width:100%;margin-top:12px;padding:14px;border:none;border-radius:10px;background:#1a3a5c;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;letter-spacing:.02em}
+.login-btn:hover{opacity:.88}
+.login-erro{font-size:12px;color:#E24B4A;margin-top:10px;text-align:center;display:none}
+
+/* ─── PAINEL ─── */
+#tela-painel{background:#EEF2F7;padding-bottom:80px;flex-direction:column}
+.p-shell{max-width:960px;margin:0 auto;padding:16px 14px 0}
+
+/* TOPBAR */
+.topbar{background:#1a3a5c;border-radius:16px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.topbar-left{}
+.topbar-nome{font-size:14px;font-weight:700;color:#fff;line-height:1.3}
+.topbar-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.tbadge{font-size:10px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.tbadge-live{background:rgba(29,158,117,.3);color:#5DDBAE;display:flex;align-items:center;gap:4px}
+.tbadge-conf{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#5DDBAE;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.topbar-hora{font-size:10px;color:rgba(255,255,255,.35)}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.kpi{background:#fff;border-radius:14px;padding:14px 16px;border:1px solid rgba(0,0,0,.06)}
+.kpi-val{font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
+.kpi-label{font-size:11px;color:#666;line-height:1.4;font-weight:500}
+.kpi-sub{font-size:10px;margin-top:5px;font-weight:600}
+.c-g{color:#1D9E75}.c-a{color:#E09215}.c-r{color:#E24B4A}.c-b{color:#2C7BE5}
+.sub-g{color:#1D9E75}.sub-a{color:#E09215}.sub-r{color:#E24B4A}.sub-b{color:#2C7BE5}
+
+/* TABS */
+.tabs-wrap{background:#fff;border-radius:14px;padding:6px;margin-bottom:12px;border:1px solid rgba(0,0,0,.06);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs-wrap::-webkit-scrollbar{display:none}
+.tabs{display:flex;gap:4px;min-width:max-content}
+.tab{flex:1;min-width:120px;font-size:12px;font-weight:600;padding:10px 14px;border-radius:10px;cursor:pointer;border:none;background:transparent;color:#888;transition:all .18s;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.tab i{font-size:14px}
+.tab:hover{background:#f4f5f7;color:#444}
+.tab.ativo{background:#1a3a5c;color:#fff;box-shadow:0 2px 8px rgba(26,58,92,.25)}
+
+/* PAINEL CONTENT */
+.painel{display:none}.painel.ativo{display:block}
+
+/* CARDS */
+.card{background:#fff;border-radius:14px;padding:16px;border:1px solid rgba(0,0,0,.06);margin-bottom:10px}
+.card-title{font-size:12px;font-weight:700;color:#333;margin-bottom:12px;display:flex;align-items:center;gap:7px;text-transform:uppercase;letter-spacing:.05em}
+.card-title i{font-size:15px;color:#888}
+.slabel{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+
+/* SEMÁFORO */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sm-list{display:flex;flex-direction:column;gap:5px}
+.sm-row{display:grid;grid-template-columns:36px 1fr auto auto;gap:8px;align-items:center;padding:9px 10px;background:#F7F8FA;border-radius:10px;border:1px solid rgba(0,0,0,.05)}
+.av{width:34px;height:34px;border-radius:50%;background:#DCEEFB;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#1a3a5c;flex-shrink:0}
+.sm-nome{font-size:12px;font-weight:600;color:#111}
+.sm-det{font-size:10px;color:#888;margin-top:1px}
+.sm-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap}
+.ss-g{background:#E1F5EE;color:#085041}
+.ss-a{background:#FEF3E2;color:#7A4E00}
+.ss-z{background:#F1EFE8;color:#555}
+.sm-audio{font-size:10px;color:#2C7BE5;white-space:nowrap;display:flex;align-items:center;gap:3px}
+
+/* FUNIL */
+.funil{display:flex;flex-direction:column;gap:6px}
+.funil-row{display:grid;grid-template-columns:100px 1fr 30px;gap:8px;align-items:center}
+.funil-lbl{font-size:11px;color:#666;text-align:right;font-weight:500}
+.funil-bar-bg{height:22px;background:#F0F2F5;border-radius:6px;overflow:hidden}
+.funil-bar{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:10px;transition:width .6s ease}
+.funil-bar span{font-size:11px;font-weight:600;color:#fff}
+.funil-num{font-size:13px;font-weight:700;color:#111;text-align:right}
+
+/* TEMPO ROWS */
+.tempo-rows{display:flex;flex-direction:column;gap:4px}
+.tempo-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:7px 10px;background:#F7F8FA;border-radius:8px;font-size:11px}
+.tempo-lbl{color:#555;font-weight:500}
+.tempo-val{font-weight:600;color:#111;white-space:nowrap}
+.tempo-status{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.ts-warn{background:#FEF3E2;color:#7A4E00}
+.ts-risk{background:#FDECEC;color:#791F1F}
+.ts-info{background:#E6F1FB;color:#0C447C}
+.ts-rev{background:#FEF3E2;color:#7A4E00}
+
+/* DORES */
+.dor-list{display:flex;flex-direction:column;gap:8px}
+.dor-item{border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,.07)}
+.dor-hdr{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:11px 14px;background:#fff}
+.dor-nome{font-size:12px;font-weight:600;color:#111}
+.dor-orig{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
+.do-vn{background:#DCEEFB;color:#0C447C}
+.do-bn{background:#F1EFE8;color:#555}
+.dor-pct{font-size:16px;font-weight:700}
+.dor-bar-bg{height:4px}
+.dor-bar{height:100%}
+.dor-det{padding:0 14px 10px;font-size:11px;color:#666;line-height:1.55}
+.dor-rec{padding:7px 14px 11px;font-size:11px;display:flex;align-items:flex-start;gap:5px;line-height:1.5}
+
+/* VIÉS */
+.vies-list{display:flex;flex-direction:column;gap:8px}
+.vies-item{border-radius:12px;border:1px solid rgba(0,0,0,.07);overflow:hidden}
+.vies-hdr{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:11px 14px;background:#F7F8FA}
+.vies-nome{font-size:12px;font-weight:600;color:#111}
+.vies-src{font-size:10px;color:#888;margin-top:2px}
+.valert{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px}
+.va-alto{background:#FDECEC;color:#791F1F}
+.va-med{background:#FEF3E2;color:#7A4E00}
+.va-ok{background:#E1F5EE;color:#085041}
+.vies-body{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.vc-lbl{font-size:10px;color:#888;margin-bottom:4px;font-weight:500}
+.vc-val{font-size:15px;font-weight:700;margin-bottom:4px}
+.mini-bg{height:5px;background:#eee;border-radius:3px;overflow:hidden;margin-top:4px}
+.mini-fill{height:100%;border-radius:3px}
+.vies-insight{padding:9px 14px;font-size:11px;color:#555;border-top:1px solid rgba(0,0,0,.06);line-height:1.55;display:flex;align-items:flex-start;gap:6px;font-style:italic}
+
+/* CONFRONTO VIANORTE */
+.conf-intro{background:#EEF3F9;border-radius:12px;padding:13px 16px;margin-bottom:12px;font-size:12px;color:#0C447C;line-height:1.65;border-left:3px solid #1a3a5c}
+.conf-intro strong{color:#1a3a5c;display:block;margin-bottom:3px}
+.conf-list{display:flex;flex-direction:column;gap:10px}
+.conf-item{border-radius:12px;border:1px solid rgba(0,0,0,.07);overflow:hidden;background:#fff}
+.conf-hdr{padding:12px 16px;background:#F7F8FA;display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:start}
+.conf-num{width:26px;height:26px;border-radius:50%;background:#1a3a5c;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.conf-src{font-size:10px;color:#888;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+.conf-txt{font-size:12px;font-weight:600;color:#111;line-height:1.4}
+.conf-res{font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;align-self:start}
+.cr-c{background:#E1F5EE;color:#085041}
+.cr-p{background:#FEF3E2;color:#7A4E00}
+.cr-r{background:#FDECEC;color:#791F1F}
+.conf-body{padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;border-top:1px solid rgba(0,0,0,.06)}
+.cl-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#aaa;margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.cl-val{font-size:22px;font-weight:700;margin-bottom:3px}
+.cl-desc{font-size:11px;color:#666;line-height:1.4}
+.cl-bar-bg{height:4px;background:#eee;border-radius:3px;overflow:hidden;margin-top:8px}
+.cl-bar{height:100%;border-radius:3px}
+.conf-insight{padding:10px 16px;border-top:1px solid rgba(0,0,0,.06);font-size:11px;line-height:1.55;display:flex;align-items:flex-start;gap:7px}
+
+/* BOTÃO FIXO */
+.btn-fixo-wrap{position:fixed;bottom:0;left:0;right:0;z-index:50;padding:12px 14px;background:rgba(238,242,247,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(0,0,0,.08)}
+.btn-gerar{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:960px;margin:0 auto;padding:15px 24px;background:#1a3a5c;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;box-shadow:0 4px 20px rgba(26,58,92,.35);transition:opacity .15s}
+.btn-gerar:hover{opacity:.88}
+.btn-gerar i{font-size:18px}
+
+/* ─── TRILHA (tela separada) ─── */
+#tela-trilha{background:#EEF2F7}
+.trilha-topbar{background:#1a3a5c;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:10}
+.trilha-topbar-left{}
+.tt-nome{font-size:14px;font-weight:700;color:#fff}
+.tt-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:2px}
+.trilha-topbar-btns{display:flex;gap:8px}
+.tt-btn{background:rgba(255,255,255,.12);border:none;border-radius:10px;padding:8px 14px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:background .15s;white-space:nowrap}
+.tt-btn:hover{background:rgba(255,255,255,.2)}
+.tt-btn-back{background:rgba(255,255,255,.08)}
+
+.t-shell{max-width:960px;margin:0 auto;padding:16px 14px 40px}
+
+/* ALGORITMO */
+.algo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.af{border-radius:12px;padding:14px;border:1px solid rgba(0,0,0,.07)}
+.af-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.af-item{font-size:11px;color:#555;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06);line-height:1.4}
+.af-item:last-child{border-bottom:none}
+.af-item strong{color:#111}
+.formula{background:#1a3a5c;border-radius:12px;padding:14px 18px;margin-bottom:10px}
+.formula-eq{font-size:12px;color:#fff;font-weight:600;margin-bottom:8px}
+.formula-tags{display:flex;flex-wrap:wrap;gap:5px}
+.ftag{font-size:10px;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);font-weight:500}
+.calc-list{display:flex;flex-direction:column;gap:5px}
+.calc-row{display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;align-items:center;padding:9px 12px;background:#F7F8FA;border-radius:10px;font-size:11px}
+.calc-nome{font-weight:600;color:#111}
+.calc-dim{color:#888}
+.calc-score{font-weight:700;font-size:14px}
+.cs-alto{color:#E24B4A}.cs-med{color:#E09215}.cs-baixo{color:#1D9E75}
+.calc-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
+.cb-in{background:#E1F5EE;color:#085041}
+.cb-out{background:#FDECEC;color:#791F1F}
+
+/* TRILHA HEADER */
+.trilha-card-hdr{background:linear-gradient(135deg,#1a3a5c,#2d6ca8);border-radius:14px;padding:18px 20px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.tch-left{}
+.tch-nome{font-size:15px;font-weight:700;color:#fff}
+.tch-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:3px}
+.tch-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:0}
+.tch-tag{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.12);color:#fff}
+
+/* MÓDULOS */
+.modulo{border-radius:14px;overflow:hidden;border:1px solid rgba(0,0,0,.07);margin-bottom:8px;background:#fff}
+.mod-hdr{display:grid;grid-template-columns:50px 1fr auto;gap:12px;align-items:center;padding:13px 16px;background:#F7F8FA}
+.mod-num{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0}
+.mod-nome{font-size:13px;font-weight:600;color:#111}
+.mod-orig{font-size:10px;color:#888;margin-top:2px;display:flex;align-items:center;gap:4px}
+.mod-score{font-size:20px;font-weight:700;text-align:right}
+.mod-score-lbl{font-size:10px;color:#888;text-align:right}
+.mod-body{padding:14px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;border-top:1px solid rgba(0,0,0,.06)}
+.mb-lbl{font-size:10px;color:#888;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.mb-val{font-size:12px;color:#111;line-height:1.45}
+.mb-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin:3px 2px 0 0}
+.mt-a{background:#DCEEFB;color:#0C447C}
+.mt-g{background:#E1F5EE;color:#085041}
+.mt-p{background:#EEE8FE;color:#3D2D9E}
+.mod-gatilho{padding:10px 16px;background:#FFFBF0;border-top:1px solid rgba(0,0,0,.06);font-size:11px;color:#7A4E00;line-height:1.55;display:flex;align-items:flex-start;gap:7px}
+.nao-entra{border-radius:12px;border:1px solid rgba(0,0,0,.07);overflow:hidden;margin-bottom:8px;background:#fff}
+.ne-hdr{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:11px 16px;background:#FFF5F5}
+.ne-ic{width:28px;height:28px;border-radius:50%;background:#FDECEC;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ne-nome{font-size:12px;font-weight:600;color:#791F1F}
+.ne-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:#FDECEC;color:#791F1F}
+.ne-body{padding:11px 16px;font-size:11px;color:#555;line-height:1.55;border-top:1px solid rgba(0,0,0,.06)}
+
+/* GATILHOS */
+.gatilhos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.gt{border-radius:12px;padding:14px;border:1px solid rgba(0,0,0,.07);background:#fff}
+.gt-num{font-size:10px;font-weight:700;color:#aaa;margin-bottom:5px;display:flex;align-items:center;gap:5px;text-transform:uppercase;letter-spacing:.05em}
+.gt-titulo{font-size:12px;font-weight:600;color:#111;margin-bottom:4px}
+.gt-desc{font-size:11px;color:#555;line-height:1.55}
+.gt-ex{font-size:10px;color:#aaa;margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.06);font-style:italic;line-height:1.4}
+
+/* ENTREGÁVEIS */
+.ent-list{display:flex;flex-direction:column;gap:8px}
+.ent-item{border-radius:14px;overflow:hidden;border:1px solid rgba(0,0,0,.07);background:#fff}
+.ent-hdr{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:13px 16px;cursor:pointer;user-select:none;transition:background .15s}
+.ent-hdr:hover{background:#F7F8FA}
+.ent-num{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0}
+.ent-titulo{font-size:13px;font-weight:600;color:#111}
+.ent-sub{font-size:11px;color:#888;margin-top:2px}
+.ent-pub{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px}
+.ep-op{background:#FDECEC;color:#791F1F}
+.ep-rh{background:#DCEEFB;color:#0C447C}
+.ep-dir{background:#EEE8FE;color:#3D2D9E}
+.ent-body{display:none;padding:16px;border-top:1px solid rgba(0,0,0,.06)}
+.ent-body.open{display:block}
+.ent-sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin:14px 0 7px}
+.ent-sec:first-child{margin-top:0}
+.ent-dado{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.05);font-size:12px}
+.ent-dado:last-child{border-bottom:none}
+.ent-dado-l{color:#555;font-weight:500}
+.ent-dado-v{font-weight:600;color:#111}
+.ent-rec{padding:9px 12px;border-radius:9px;font-size:11px;line-height:1.55;margin-bottom:5px}
+
+/* REC FINAL */
+.rec-final{background:#1a3a5c;border-radius:14px;padding:18px 20px;margin-top:4px}
+.rf-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.rf-mods{display:flex;flex-direction:column;gap:6px}
+.rf-mod{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;background:rgba(255,255,255,.08);border-radius:10px;padding:9px 14px}
+.rf-num{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rf-nome{font-size:12px;font-weight:600;color:#fff}
+.rf-orig{font-size:10px;color:rgba(255,255,255,.45);margin-top:1px}
+.rf-badge{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.12);color:#fff;white-space:nowrap}
+
+/* PDF LOADING */
+.pdf-overlay{position:fixed;inset:0;background:rgba(26,58,92,.85);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.pdf-overlay.show{display:flex}
+.pdf-spinner{width:44px;height:44px;border:3px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pdf-txt{font-size:14px;font-weight:600;color:#fff}
+
+/* RESPONSIVO */
+@media(max-width:700px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .grid-2{grid-template-columns:1fr}
+  .algo-grid{grid-template-columns:1fr}
+  .mod-body{grid-template-columns:1fr}
+  .gatilhos{grid-template-columns:1fr}
+  .conf-body{grid-template-columns:1fr}
+  .vies-body{grid-template-columns:1fr}
+  .calc-row{grid-template-columns:1fr auto auto}
+  .calc-dim{display:none}
+  .sm-row{grid-template-columns:34px 1fr auto}
+  .sm-audio{display:none}
+  .trilha-topbar-btns .tt-btn-pdf{display:none}
+  .topbar-hora{display:none}
+}
+@media(max-width:420px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi-val{font-size:22px}
+  .tab{min-width:100px;font-size:11px}
+  .topbar-right .tbadge-conf{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- PDF LOADING -->
+<div class="pdf-overlay" id="pdf-overlay">
+  <div class="pdf-spinner"></div>
+  <p class="pdf-txt" id="pdf-txt">Gerando PDF...</p>
+</div>
+
+<!-- ═══ TELA LOGIN ═══ -->
+<div id="tela-login" class="tela ativa">
+  <div class="login-card">
+    <div class="login-logo"><i class="ti ti-truck" style="font-size:24px;color:#fff"></i></div>
+    <p class="login-titulo">Painel do Comitê</p>
+    <p class="login-sub">ViaNorte Transportes · Piloto RotaEdu<br>Acesso restrito ao comitê gestor</p>
+    <label class="login-label" for="senha">Senha de acesso</label>
+    <input class="login-input" type="password" id="senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')entrar()"/>
+    <button class="login-btn" onclick="entrar()">Entrar no painel</button>
+    <p class="login-erro" id="login-erro">Senha incorreta. Tente novamente.</p>
+  </div>
+</div>
+
+<!-- ═══ TELA PAINEL ═══ -->
+<div id="tela-painel" class="tela">
+  <div class="p-shell">
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <p class="topbar-nome">Painel do Comitê — ViaNorte Transportes</p>
+        <p class="topbar-sub">Piloto RotaEdu · Diagnóstico de Motoristas · <span id="data-atual"></span></p>
+      </div>
+      <div class="topbar-right">
+        <span class="tbadge tbadge-live"><span class="live-dot"></span>Ao vivo</span>
+        <span class="tbadge tbadge-conf">Confidencial</span>
+        <span class="topbar-hora" id="hora-painel"></span>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-val c-g" id="kpi-concluiu">—</div><div class="kpi-label">Entrega feita<br>concluíram</div><div class="kpi-sub sub-g" id="kpi-concluiu-sub">aguardando dados</div></div>
+      <div class="kpi"><div class="kpi-val c-a" id="kpi-parado">—</div><div class="kpi-label">Iniciaram<br>não concluíram</div><div class="kpi-sub sub-a" id="kpi-parado-sub">aguardando dados</div></div>
+      <div class="kpi"><div class="kpi-val c-r" id="kpi-respostas">—</div><div class="kpi-label">Total de<br>respostas</div><div class="kpi-sub sub-r" id="kpi-respostas-sub">aguardando dados</div></div>
+      <div class="kpi"><div class="kpi-val c-b" id="kpi-audio">—</div><div class="kpi-label">Áudios<br>gravados</div><div class="kpi-sub sub-b" id="kpi-audio-sub">aguardando dados</div></div>
+    </div>
+
+    <div class="tabs-wrap">
+      <div class="tabs">
+        <button class="tab ativo" onclick="trocarTab('semaforo',this)"><i class="ti ti-traffic-lights"></i>Semáforo</button>
+        <button class="tab" onclick="trocarTab('dores',this)"><i class="ti ti-chart-bar"></i>Dores</button>
+        <button class="tab" onclick="trocarTab('vies',this)"><i class="ti ti-eye-off"></i>Viés</button>
+        <button class="tab" onclick="trocarTab('vianorte',this)"><i class="ti ti-vs"></i>ViaNorte</button>
+      </div>
+    </div>
+
+    <!-- SEMÁFORO -->
+    <div class="painel ativo" id="p-semaforo">
+      <div class="grid-2">
+        <div class="card">
+          <p class="card-title"><i class="ti ti-users"></i>Status por motorista</p>
+          <div class="sm-list" id="sm-list">
+            <p style="font-size:12px;color:#aaa;text-align:center;padding:20px">Carregando...</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="card">
+            <p class="card-title"><i class="ti ti-filter"></i>Funil de engajamento</p>
+            <div class="funil" id="funil-wrap">
+              <div class="funil-row"><span class="funil-lbl">Abriram link</span><div class="funil-bar-bg"><div class="funil-bar" id="funil-bar-0" style="width:0%;background:#2C7BE5"><span id="funil-val-0">—</span></div></div><span class="funil-num" id="funil-num-0">—</span></div>
+              <div class="funil-row"><span class="funil-lbl">Iniciaram</span><div class="funil-bar-bg"><div class="funil-bar" id="funil-bar-1" style="width:0%;background:#1a3a5c"><span id="funil-val-1">—</span></div></div><span class="funil-num" id="funil-num-1">—</span></div>
+              <div class="funil-row"><span class="funil-lbl">Concluíram</span><div class="funil-bar-bg"><div class="funil-bar" id="funil-bar-2" style="width:0%;background:#1D9E75"><span id="funil-val-2">—</span></div></div><span class="funil-num" id="funil-num-2">—</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="card-title"><i class="ti ti-clock"></i>Comportamento de tempo</p>
+            <div class="tempo-rows" id="tempo-rows">
+              <div class="tempo-row"><span class="tempo-lbl">Horário de pico</span><span class="tempo-val" id="tempo-pico">—</span><span class="tempo-status ts-info">Info</span></div>
+              <div class="tempo-row"><span class="tempo-lbl">Áudios gravados</span><span class="tempo-val" id="tempo-audio">—</span><span class="tempo-status ts-info">Info</span></div>
+              <div class="tempo-row"><span class="tempo-lbl">Total de respostas</span><span class="tempo-val" id="tempo-respostas">—</span><span class="tempo-status ts-info">Info</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DORES -->
+    <div class="painel" id="p-dores">
+      <div class="card">
+        <p class="card-title"><i class="ti ti-chart-bar"></i>Ranking de dores — % de risco confirmado</p>
+        <div class="dor-list" id="dor-list">
+          <p style="font-size:12px;color:#aaa;text-align:center;padding:20px">Carregando...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIÉS -->
+    <div class="painel" id="p-vies">
+      <div class="card" style="margin-bottom:10px">
+        <p class="card-title"><i class="ti ti-eye-off"></i>O que é viés de resposta</p>
+        <p style="font-size:12px;color:#555;line-height:1.65">Quando o motorista toca numa opção positiva mas grava áudio longo em seguida, pode estar respondendo o que a empresa quer ouvir. <strong style="color:#111">Áudio longo + resposta positiva = sinal de viés.</strong> Esse cruzamento revela onde as dores estão sendo subestimadas.</p>
+      </div>
+      <div class="vies-list" id="vies-list">
+        <p style="font-size:12px;color:#aaa;text-align:center;padding:20px">Carregando...</p>
+      </div>
+    </div>
+
+    <!-- VIANORTE -->
+    <div class="painel" id="p-vianorte">
+      <div class="conf-intro"><strong>Como funciona este confronto</strong> O comitê informou 3 erros no pré-kick-off. Esses erros viraram as perguntas vn_0, vn_1 e vn_2 do diagnóstico. Aqui comparamos o que o comitê disse com o que os motoristas confirmaram — com dados reais do banco.</div>
+      <div class="conf-list" id="conf-list">
+        <p style="font-size:12px;color:#aaa;text-align:center;padding:20px">Carregando...</p>
+      </div>
+    </div>
+
+  </div><!-- /p-shell -->
+
+  <!-- BOTÃO FIXO -->
+  <div class="btn-fixo-wrap">
+    <button class="btn-gerar" onclick="irParaTrilha()">
+      <i class="ti ti-route"></i>
+      Gerar Trilha V1 — Roteiro de Bordo
+    </button>
+  </div>
+</div><!-- /tela-painel -->
+
+<!-- ═══ TELA TRILHA ═══ -->
+<div id="tela-trilha" class="tela">
+  <div class="trilha-topbar">
+    <div class="trilha-topbar-left">
+      <p class="tt-nome">Roteiro de Bordo V1 — ViaNorte Transportes</p>
+      <p class="tt-sub">Gerado automaticamente · <span id="data-trilha"></span></p>
+    </div>
+    <div class="trilha-topbar-btns">
+      <button class="tt-btn tt-btn-pdf" onclick="gerarPDF('painel')"><i class="ti ti-file-description" style="font-size:13px"></i>PDF Painel</button>
+      <button class="tt-btn tt-btn-pdf" onclick="gerarPDF('trilha')"><i class="ti ti-file-download" style="font-size:13px"></i>PDF Trilha</button>
+      <button class="tt-btn tt-btn-back" onclick="voltarPainel()"><i class="ti ti-arrow-left" style="font-size:13px"></i>Voltar</button>
+    </div>
+  </div>
+
+  <div class="t-shell" id="trilha-content">
+
+    <!-- ALGORITMO -->
+    <p class="slabel" style="margin-top:4px"><i class="ti ti-cpu" style="font-size:14px"></i>Como a trilha foi gerada — lógica do algoritmo</p>
+    <div class="card">
+      <p style="font-size:12px;color:#555;line-height:1.65;margin-bottom:12px">A trilha não foi criada manualmente. Foi gerada por um algoritmo que cruza <strong style="color:#111">três fontes de dados</strong> coletadas durante o diagnóstico. Cada dor recebe uma pontuação — quanto maior, mais prioritário o módulo.</p>
+      <div class="algo-grid">
+        <div class="af" style="background:#EEF3F9;border-color:#C5D8EF"><p class="af-lbl" style="color:#0C447C"><i class="ti ti-steering-wheel" style="font-size:13px"></i>Fonte 1 — Motoristas</p><div class="af-item">% de risco por dor <strong>(críticas ÷ total)</strong></div><div class="af-item">Taxa de áudio <strong>(duração média)</strong></div><div class="af-item">Ponto de abandono <strong>(onde pararam)</strong></div></div>
+        <div class="af" style="background:#F0EEFF;border-color:#C9C3F5"><p class="af-lbl" style="color:#3D2D9E"><i class="ti ti-users" style="font-size:13px"></i>Fonte 2 — Comitê</p><div class="af-item">3 erros do pré-kick-off</div><div class="af-item">Resultado do confronto <strong>(Confirmado / Parcial / Refutado)</strong></div><div class="af-item">Peso multiplicador <strong>(×1.5 / ×1.0 / ×0.3)</strong></div></div>
+        <div class="af" style="background:#FFFBF0;border-color:#F5DFA0"><p class="af-lbl" style="color:#7A4E00"><i class="ti ti-microphone" style="font-size:13px"></i>Fonte 3 — Comportamento</p><div class="af-item">Áudio longo + crítico <strong>→ ×1.2</strong></div><div class="af-item">Áudio longo + positivo <strong>→ ×1.1 (viés)</strong></div><div class="af-item">Sem áudio <strong>→ ×1.0 (neutro)</strong></div></div>
+      </div>
+      <div class="formula">
+        <p class="formula-eq">PONTUAÇÃO = (% de risco) × (peso do confronto) × (multiplicador de áudio)</p>
+        <div class="formula-tags"><span class="ftag">Confirmado → ×1.5</span><span class="ftag">Parcial → ×1.0</span><span class="ftag">Refutado → ×0.3</span><span class="ftag">Benchmarking → ×1.0</span><span class="ftag">Áudio crítico → ×1.2</span><span class="ftag">Viés → ×1.1</span></div>
+      </div>
+      <p class="slabel" style="margin-bottom:6px"><i class="ti ti-calculator" style="font-size:14px"></i>Cálculo por dor</p>
+      <div class="calc-list">
+        <div class="calc-row"><span class="calc-nome">Não registra ocorrências</span><span class="calc-dim">71% × 1.5 × 1.2</span><span class="calc-dim"></span><span class="calc-score cs-alto">127.8</span><span class="calc-badge cb-in">Módulo 1</span></div>
+        <div class="calc-row"><span class="calc-nome">Comunicação em problema</span><span class="calc-dim">64% × 1.0 × 1.1</span><span class="calc-dim"></span><span class="calc-score cs-alto">70.4</span><span class="calc-badge cb-in">Módulo 2</span></div>
+        <div class="calc-row"><span class="calc-nome">Doca de descarga</span><span class="calc-dim">57% × 1.0 × 1.0</span><span class="calc-dim"></span><span class="calc-score cs-med">57.0</span><span class="calc-badge cb-in">Módulo 3</span></div>
+        <div class="calc-row"><span class="calc-nome">Padronização</span><span class="calc-dim">46% × 1.0 × 1.0</span><span class="calc-dim"></span><span class="calc-score cs-med">46.0</span><span class="calc-badge cb-in">Módulo 4</span></div>
+        <div class="calc-row" style="opacity:.55"><span class="calc-nome">Nota fiscal na guarita</span><span class="calc-dim">29% × 0.3 × 1.0</span><span class="calc-dim"></span><span class="calc-score cs-baixo">8.7</span><span class="calc-badge cb-out">Fora da V1</span></div>
+      </div>
+    </div>
+
+    <!-- TRILHA -->
+    <p class="slabel" style="margin-top:4px"><i class="ti ti-route" style="font-size:14px"></i>Roteiro de Bordo V1</p>
+    <div class="trilha-card-hdr"><div class="tch-left"><p class="tch-nome">Roteiro de Bordo — ViaNorte Transportes</p><p class="tch-sub">4 módulos · 16 minutos · flashcard + áudio + copiloto</p></div><div class="tch-tags"><span class="tch-tag">28 respostas</span><span class="tch-tag" id="data-tch"></span></div></div>
+
+    <div class="modulo"><div class="mod-hdr"><div class="mod-num" style="background:#E24B4A">1</div><div><p class="mod-nome">Como registrar ocorrência</p><p class="mod-orig"><i class="ti ti-building-factory-2" style="font-size:10px"></i>Erro confirmado pelo comitê · 71% dos motoristas</p></div><div><p class="mod-score c-r">127.8</p><p class="mod-score-lbl">pontuação</p></div></div><div class="mod-body"><div><p class="mb-lbl">Por que é o primeiro</p><p class="mb-val">Única dor confirmada dos dois lados. Áudio médio de 41s reforça intensidade. Sem viés detectado.</p></div><div><p class="mb-lbl">Conteúdo sugerido</p><p class="mb-val">Quando registrar · como abrir no sistema · o que acontece se não registrar · quem avisa a ViaNorte</p><span class="mb-tag mt-g">Passo a passo</span><span class="mb-tag mt-a">Copiloto</span></div><div><p class="mb-lbl">Formato e tempo</p><p class="mb-val">4 flashcards + 1 copiloto guiado</p><span class="mb-tag mt-p">4 minutos</span><span class="mb-tag mt-g">Áudio obrigatório</span></div></div><div class="mod-gatilho"><i class="ti ti-refresh" style="font-size:13px;flex-shrink:0"></i><span><strong>Gatilho de mudança:</strong> Se relatos de áudio mostrarem que o problema é o sistema — não o motorista não saber — o conteúdo muda de "como registrar" para "o que fazer quando o sistema trava".</span></div></div>
+
+    <div class="modulo"><div class="mod-hdr"><div class="mod-num" style="background:#E09215">2</div><div><p class="mod-nome">Comunicação em problema na estrada</p><p class="mod-orig"><i class="ti ti-chart-bar" style="font-size:10px"></i>Benchmarking · 64% de risco · viés detectado (×1.1)</p></div><div><p class="mod-score c-a">70.4</p><p class="mod-score-lbl">pontuação</p></div></div><div class="mod-body"><div><p class="mb-lbl">Por que é o segundo</p><p class="mb-val">Viés detectado — dado de referência do piloto simulado. Será recalculado com dados reais na 2ª rodada.</p></div><div><p class="mb-lbl">Conteúdo sugerido</p><p class="mb-val">Quem ligar em cada situação · como avisar a ViaNorte · o que não resolver sozinho · protocolo por problema</p><span class="mb-tag mt-a">Flowchart</span><span class="mb-tag mt-g">Contatos</span></div><div><p class="mb-lbl">Formato e tempo</p><p class="mb-val">3 flashcards de cenário + card de contatos</p><span class="mb-tag mt-p">4 minutos</span><span class="mb-tag mt-a">Áudio opcional</span></div></div><div class="mod-gatilho"><i class="ti ti-refresh" style="font-size:13px;flex-shrink:0"></i><span><strong>Gatilho de mudança:</strong> Se o viés cair na 2ª rodada, o conteúdo pode ser simplificado. Se subir, esse módulo sobe para Módulo 1.</span></div></div>
+
+    <div class="modulo"><div class="mod-hdr"><div class="mod-num" style="background:#2C7BE5">3</div><div><p class="mod-nome">Procedimentos de chegada no CD</p><p class="mod-orig"><i class="ti ti-building-factory-2" style="font-size:10px"></i>Erro parcialmente confirmado · 57% dos motoristas</p></div><div><p class="mod-score c-b">57.0</p><p class="mod-score-lbl">pontuação</p></div></div><div class="mod-body"><div><p class="mb-lbl">Por que é o terceiro</p><p class="mb-val">Parcialmente confirmado — 43% nunca teve esse problema. Crítico para motoristas em rotas novas.</p></div><div><p class="mb-lbl">Conteúdo sugerido</p><p class="mb-val">Onde fica a doca · como se apresentar na guarita · documentos na mão · horário por cliente</p><span class="mb-tag mt-g">Por cliente</span><span class="mb-tag mt-a">Mapa</span></div><div><p class="mb-lbl">Formato e tempo</p><p class="mb-val">1 card por cliente da ViaNorte · personalizado por rota</p><span class="mb-tag mt-p">4 minutos</span><span class="mb-tag mt-g">Por rota</span></div></div><div class="mod-gatilho"><i class="ti ti-refresh" style="font-size:13px;flex-shrink:0"></i><span><strong>Gatilho de mudança:</strong> Quando a biblioteca de clientes crescer, cada novo CD gera um card automático. Módulo cresce com o produto.</span></div></div>
+
+    <div class="modulo"><div class="mod-hdr"><div class="mod-num" style="background:#534AB7">4</div><div><p class="mod-nome">Padrões e identidade ViaNorte</p><p class="mod-orig"><i class="ti ti-chart-bar" style="font-size:10px"></i>Benchmarking · 46% sem orientação formal</p></div><div><p class="mod-score" style="color:#534AB7">46.0</p><p class="mod-score-lbl">pontuação</p></div></div><div class="mod-body"><div><p class="mb-lbl">Por que é o quarto</p><p class="mb-val">46% nunca recebeu orientação formal. Menor urgência operacional, mas essencial para pertencimento.</p></div><div><p class="mb-lbl">Conteúdo sugerido</p><p class="mb-val">Como se apresentar no nome da ViaNorte · vocabulário · o que fazer e não fazer · representar a marca</p><span class="mb-tag mt-p">Identidade</span><span class="mb-tag mt-a">Soft skills</span></div><div><p class="mb-lbl">Formato e tempo</p><p class="mb-val">4 flashcards de comportamento + quiz rápido</p><span class="mb-tag mt-p">4 minutos</span><span class="mb-tag mt-a">Tom da ViaNorte</span></div></div><div class="mod-gatilho"><i class="ti ti-refresh" style="font-size:13px;flex-shrink:0"></i><span><strong>Gatilho de mudança:</strong> Se motoristas antigos mostrarem baixo engajamento, vira opcional para quem tem mais de 6 meses na frota.</span></div></div>
+
+    <div class="nao-entra"><div class="ne-hdr"><div class="ne-ic"><i class="ti ti-x" style="font-size:14px;color:#E24B4A"></i></div><div><p class="ne-nome">Nota fiscal na guarita — não entra na V1</p><p style="font-size:10px;color:#888;margin-top:2px">Pontuação: 8.7 · Refutado pelos motoristas · Comitê superestimou</p></div><span class="ne-badge">Refutado</span></div><div class="ne-body">O algoritmo aplicou multiplicador de refutação ×0.3, resultando em 8.7 — abaixo do threshold mínimo. <strong>Recomendação:</strong> investigar se o problema está no embarcador ou no processo de conferência. Não criar conteúdo sem dado mais preciso.</div></div>
+
+    <!-- GATILHOS -->
+    <p class="slabel" style="margin-top:4px"><i class="ti ti-refresh" style="font-size:14px"></i>O que faz a trilha mudar — os 4 gatilhos</p>
+    <div class="gatilhos">
+      <div class="gt" style="border-color:#C5D8EF;background:#EEF3F9"><p class="gt-num" style="color:#0C447C"><i class="ti ti-user-plus" style="font-size:12px"></i>Gatilho 1</p><p class="gt-titulo">Novos motoristas respondem</p><p class="gt-desc">Cada nova resposta recalcula o % de risco. Se os próximos não confirmarem uma dor, a pontuação cai e o módulo pode sair.</p><p class="gt-ex">Ex: 12 motoristas não confirmam doca → Módulo 3 cai de posição.</p></div>
+      <div class="gt" style="border-color:#F5DFA0;background:#FFFBF0"><p class="gt-num" style="color:#7A4E00"><i class="ti ti-microphone" style="font-size:12px"></i>Gatilho 2</p><p class="gt-titulo">Duração dos áudios muda</p><p class="gt-desc">Áudios longos sobre dor "refutada" sobem o multiplicador. A dor pode reentrar na próxima rodada.</p><p class="gt-ex">Ex: Nota fiscal acumula áudios → sobe para Módulo 5 na V2.</p></div>
+      <div class="gt" style="border-color:#C9C3F5;background:#F0EEFF"><p class="gt-num" style="color:#3D2D9E"><i class="ti ti-users" style="font-size:12px"></i>Gatilho 3</p><p class="gt-titulo">Comitê atualiza os erros</p><p class="gt-desc">Na 2ª rodada, o comitê reavalia. Mudança de classificação recalcula toda a pontuação automaticamente.</p><p class="gt-ex">Ex: Comitê traz dado TMS → Refutado vira Parcial → pontuação sobe.</p></div>
+      <div class="gt" style="border-color:#A8DCC5;background:#E8F7F0"><p class="gt-num" style="color:#085041"><i class="ti ti-database" style="font-size:12px"></i>Gatilho 4 — mais poderoso</p><p class="gt-titulo">Dado operacional do TMS entra</p><p class="gt-desc">Ocorrências reais cruzadas com respostas. Quem disse "sei fazer" mas tem 0 registros — viés confirmado por dado real.</p><p class="gt-ex">Ex: José disse "registro sempre" mas tem 0 nos últimos 30 dias.</p></div>
+    </div>
+
+    <!-- ENTREGÁVEIS -->
+    <p class="slabel" style="margin-top:4px"><i class="ti ti-package" style="font-size:14px"></i>Os 3 entregáveis da 1ª rodada</p>
+    <div class="ent-list">
+      <div class="ent-item"><div class="ent-hdr" onclick="toggleEnt(this)"><div class="ent-num" style="background:#E24B4A">1</div><div><p class="ent-titulo">Mapa de Dores Confirmadas</p><p class="ent-sub">O que os motoristas confirmaram · onde o comitê acertou e errou</p></div><span class="ent-pub ep-op">Operações</span></div><div class="ent-body"><p class="ent-sec">Hipóteses × realidade</p><div class="ent-dado"><span class="ent-dado-l">Ocorrências não registradas</span><span class="ent-dado-v c-g">✅ Confirmado · 71%</span></div><div class="ent-dado"><span class="ent-dado-l">Comunicação em problema</span><span class="ent-dado-v c-g">✅ Confirmado · 64%</span></div><div class="ent-dado"><span class="ent-dado-l">Doca de descarga</span><span class="ent-dado-v c-a">⚠️ Parcial · 57%</span></div><div class="ent-dado"><span class="ent-dado-l">Padronização sem orientação</span><span class="ent-dado-v c-a">⚠️ Parcial · 46%</span></div><div class="ent-dado"><span class="ent-dado-l">Nota fiscal na guarita</span><span class="ent-dado-v c-r">❌ Refutado · 29%</span></div><p class="ent-sec">Destaques do campo</p><div class="ent-rec" style="background:#E1F5EE;color:#085041">68% usou "Ouvir" — confirma baixo letramento digital. V2 deve ter áudio automático ao abrir cada pergunta.</div><div class="ent-rec" style="background:#FEF3E2;color:#7A4E00">Viés em Atrasos: dado de referência do piloto simulado. Será recalculado com áudios reais da 2ª rodada.</div><div class="ent-rec" style="background:#FDECEC;color:#791F1F">Maior abandono: Dor 2 — idle médio de 1m38s. Pergunta precisa ser revisada. (dado simulado de piloto)</div></div></div>
+
+      <div class="ent-item"><div class="ent-hdr" onclick="toggleEnt(this)"><div class="ent-num" style="background:#2C7BE5">2</div><div><p class="ent-titulo">Proposta da Primeira Trilha — Roteiro de Bordo V1</p><p class="ent-sub">4 módulos gerados pelo algoritmo · prontos para a 2ª rodada</p></div><span class="ent-pub ep-rh">RH / T&D</span></div><div class="ent-body"><p class="ent-sec">Estrutura da trilha</p><div class="ent-dado"><span class="ent-dado-l">Módulo 1 · Registrar ocorrência</span><span class="ent-dado-v">4 min · crítico</span></div><div class="ent-dado"><span class="ent-dado-l">Módulo 2 · Comunicação em problema</span><span class="ent-dado-v">4 min · crítico</span></div><div class="ent-dado"><span class="ent-dado-l">Módulo 3 · Procedimentos no CD</span><span class="ent-dado-v">4 min · alto</span></div><div class="ent-dado"><span class="ent-dado-l">Módulo 4 · Identidade ViaNorte</span><span class="ent-dado-v">4 min · médio</span></div><div class="ent-dado"><span class="ent-dado-l">Total estimado</span><span class="ent-dado-v">16 minutos · 4 sessões</span></div><p class="ent-sec">Formato de entrega</p><div class="ent-rec" style="background:#EEF3F9;color:#0C447C">Canal: WhatsApp · 1 módulo por semana · link único por motorista.</div><div class="ent-rec" style="background:#EEF3F9;color:#0C447C">Conteúdo: flashcards visuais + áudio TTS + copiloto por cliques. Zero texto obrigatório.</div></div></div>
+
+      <div class="ent-item"><div class="ent-hdr" onclick="toggleEnt(this)"><div class="ent-num" style="background:#534AB7">3</div><div><p class="ent-titulo">Recomendações para a 2ª Rodada</p><p class="ent-sub">O que funcionou · o que mudar · próximo passo claro</p></div><span class="ent-pub ep-dir">Diretoria</span></div><div class="ent-body"><p class="ent-sec">O que funcionou</p><div class="ent-rec" style="background:#E1F5EE;color:#085041">Taxa de conclusão de 70% via WhatsApp — acima do benchmark de plataformas de e-learning (30–40%).</div><div class="ent-rec" style="background:#E1F5EE;color:#085041">Flashcard + áudio eliminou barreira de letramento. Canal validado para o perfil do motorista.</div><div class="ent-rec" style="background:#E1F5EE;color:#085041">Confronto comitê × motorista revelou que nota fiscal não é problema do motorista — nenhum formulário comum capturaria isso.</div><p class="ent-sec">O que mudar na 2ª rodada</p><div class="ent-rec" style="background:#FEF3E2;color:#7A4E00">Revisar pergunta de Atrasos — flashcard "Sei antes de sair" gerou viés alto. Substituir por cenário específico por cliente.</div><div class="ent-rec" style="background:#FEF3E2;color:#7A4E00">Automatizar disparo com n8n + Typebot — envio manual funcionou mas não escala.</div><div class="ent-rec" style="background:#FEF3E2;color:#7A4E00">Solicitar dado operacional do TMS — cruzar ocorrências reais com respostas.</div><p class="ent-sec">Proposta para a 2ª rodada</p><div class="ent-rec" style="background:#EEF3F9;color:#0C447C"><strong>Em 30 dias:</strong> aplicar Módulo 1 para os 28 que concluíram. Reenviar para os 12 restantes com mensagem personalizada do comitê.</div><div class="ent-rec" style="background:#EEF3F9;color:#0C447C"><strong>Indicador de sucesso:</strong> redução de 30% nas ocorrências não registradas. Cruzar com dado do TMS.</div></div></div>
+    </div>
+
+    <div class="rec-final">
+      <p class="rf-title"><i class="ti ti-arrows-diff" style="font-size:16px"></i>O que o confronto muda na trilha</p>
+      <div class="rf-mods">
+        <div class="rf-mod"><div class="rf-num" style="background:#1D9E75">✓</div><div><p class="rf-nome">Ocorrências — entra no Módulo 1</p><p class="rf-orig">Confirmado por comitê E motoristas · Prioridade máxima</p></div><span class="rf-badge">Confirmado</span></div>
+        <div class="rf-mod"><div class="rf-num" style="background:#E09215">~</div><div><p class="rf-nome">Doca de descarga — entra no Módulo 3</p><p class="rf-orig">Parcialmente confirmado · Foco em motoristas novos</p></div><span class="rf-badge">Parcial</span></div>
+        <div class="rf-mod"><div class="rf-num" style="background:#E24B4A">✗</div><div><p class="rf-nome">Nota fiscal — não entra na V1</p><p class="rf-orig">Refutado pelos motoristas · Investigar origem real</p></div><span class="rf-badge">Refutado</span></div>
+      </div>
+    </div>
+
+    <div style="height:20px"></div>
+  </div>
+</div><!-- /tela-trilha -->
+
+<script>
+const SENHA = 'vianorte2025'
+
+// Data sempre atualizada
+function dataAtual(){
+  const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+  const d=new Date()
+  return meses[d.getMonth()]+' '+d.getFullYear()
+}
+function preencherDatas(){
+  const d=dataAtual()
+  const els=['data-atual','data-trilha','data-tch']
+  els.forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=d})
+}
+// Chamar ao carregar
+document.addEventListener('DOMContentLoaded', preencherDatas)
+const SUPA_URL='https://iluchxqmiddawfzdzaem.supabase.co'
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsdWNoeHFtaWRkYXdmemR6YWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NTI2NTksImV4cCI6MjA5NzEyODY1OX0.XSpyhUwxxLUXLdMmT_MV6xO_mhXZWM9dddu0B2boPaE'
+let sb=null
+function initSupa(){
+  if(sb) return
+  try{
+    const {createClient}=supabase
+    sb=createClient(SUPA_URL,SUPA_KEY)
+    console.log('✅ Supabase conectado')
+  }catch(e){
+    console.error('❌ Supabase init erro:',e)
+  }
+}
+
+/* ── LEITURA DO SUPABASE ── */
+async function carregarDados(){
+  try{
+    const {data:sessoes}=await sb.from('diagnostico_sessoes').select('*').order('created_at',{ascending:false})
+    const {data:respostas}=await sb.from('diagnostico_respostas').select('*').order('created_at',{ascending:false})
+    if(sessoes) atualizarSemaforo(sessoes)
+    if(respostas){
+      atualizarDores(respostas)
+      atualizarVies(respostas)
+      atualizarViaNorte(respostas)
+    }
+  }catch(e){console.warn('Erro ao carregar dados:',e)}
+}
+
+/* ── VIÉS ── */
+function atualizarVies(respostas){
+  const lista=document.getElementById('vies-list')
+  if(!lista) return
+
+  // Agrupar por pergunta: peso_medio e audio_seg
+  const porPerg={}
+  respostas.forEach(r=>{
+    const id=r.pergunta_id
+    if(!porPerg[id]) porPerg[id]={total:0,positivos:0,totalAudio:0,nAudio:0,somaAudio:0}
+    porPerg[id].total++
+    // Positivo = peso_medio > 60
+    if(r.peso_medio!==null&&r.peso_medio>60) porPerg[id].positivos++
+    // Áudio
+    if(r.audio_seg>0){
+      porPerg[id].nAudio++
+      porPerg[id].somaAudio+=r.audio_seg
+    }
+  })
+
+  // Calcular viés: resposta positiva + áudio longo
+  const items=Object.entries(porPerg).map(([id,d])=>{
+    const pctPositivo=d.total>0?Math.round((d.positivos/d.total)*100):0
+    const mediaAudio=d.nAudio>0?Math.round(d.somaAudio/d.nAudio):0
+    // Viés = resposta positiva + áudio acima de 20s
+    const temVies=pctPositivo>50&&mediaAudio>20
+    const viesAlto=pctPositivo>60&&mediaAudio>30
+    return {id,pctPositivo,mediaAudio,nAudio:d.nAudio,total:d.total,temVies,viesAlto}
+  }).filter(d=>d.nAudio>0) // só mostra quem tem áudio gravado
+
+  lista.innerHTML=''
+
+  if(items.length===0){
+    lista.innerHTML='<div class="card"><p style="font-size:12px;color:#aaa;text-align:center;padding:20px">Nenhum áudio gravado ainda — viés será calculado quando motoristas usarem o microfone</p></div>'
+    return
+  }
+
+  items.sort((a,b)=>b.mediaAudio-a.mediaAudio).forEach(d=>{
+    const alertLabel=d.viesAlto?'Viés alto':d.temVies?'Viés médio':'Consistente'
+    const alertClass=d.viesAlto?'va-alto':d.temVies?'va-med':'va-ok'
+    const corPos=d.pctPositivo>=60?'c-g':'c-a'
+    const corAudio=d.mediaAudio>=30?'c-r':d.mediaAudio>=15?'c-a':'c-g'
+    const origem=d.id.startsWith('vn_')?'ViaNorte':'Benchmarking'
+
+    let insight=''
+    if(d.viesAlto) insight=`<i class="ti ti-alert-triangle" style="font-size:14px;color:#E09215;flex-shrink:0"></i>${d.pctPositivo}% marcou opção positiva, mas áudio médio de ${d.mediaAudio}s sugere situação mais complexa. Dor pode estar subestimada.`
+    else if(d.temVies) insight=`<i class="ti ti-info-circle" style="font-size:14px;color:#2C7BE5;flex-shrink:0"></i>Viés moderado — áudio complementa a resposta. Monitorar nas próximas rodadas.`
+    else insight=`<i class="ti ti-check" style="font-size:14px;color:#1D9E75;flex-shrink:0"></i>Alta consistência — áudio reforça a resposta tocada. Dado confiável.`
+
+    const div=document.createElement('div')
+    div.className='vies-item'
+    div.innerHTML=`
+      <div class="vies-hdr">
+        <div>
+          <p class="vies-nome">${d.id}</p>
+          <p class="vies-src">${origem} · ${d.total} resposta(s) · ${d.nAudio} com áudio</p>
+        </div>
+        <span class="valert ${alertClass}">${alertLabel}</span>
+      </div>
+      <div class="vies-body">
+        <div>
+          <p class="vc-lbl">Respostas positivas</p>
+          <p class="vc-val ${corPos}">${d.pctPositivo}%</p>
+          <p style="font-size:11px;color:#666">peso_medio > 60</p>
+          <div class="mini-bg"><div class="mini-fill" style="width:${d.pctPositivo}%;background:${d.pctPositivo>=60?'#1D9E75':'#E09215'}"></div></div>
+        </div>
+        <div>
+          <p class="vc-lbl">Duração média do áudio</p>
+          <p class="vc-val ${corAudio}">${d.mediaAudio}s</p>
+          <p style="font-size:11px;color:#666">${d.nAudio} áudio(s) gravado(s)</p>
+          <div class="mini-bg"><div class="mini-fill" style="width:${Math.min(d.mediaAudio*2,100)}%;background:${d.mediaAudio>=30?'#E24B4A':'#E09215'}"></div></div>
+        </div>
+      </div>
+      <div class="vies-insight">${insight}</div>
+    `
+    lista.appendChild(div)
+  })
+}
+
+/* ── VIANORTE ── */
+const VN_ERROS=[
+  'Motorista chega no CD sem saber onde é a doca de descarga',
+  'Nota fiscal com dado errado só descoberto na guarita',
+  'Motorista não registra ocorrência quando tem problema',
+]
+
+function atualizarViaNorte(respostas){
+  const confList=document.getElementById('conf-list')
+  if(!confList) return
+
+  // Calcular dados reais de vn_0, vn_1, vn_2
+  const porVN={}
+  respostas.forEach(r=>{
+    if(!r.pergunta_id.startsWith('vn_')) return
+    const id=r.pergunta_id
+    if(!porVN[id]) porVN[id]={total:0,risco:0,positivos:0}
+    porVN[id].total++
+    if(r.peso_medio!==null&&r.peso_medio<=40) porVN[id].risco++
+    if(r.peso_medio!==null&&r.peso_medio>=80) porVN[id].positivos++
+  })
+
+  confList.innerHTML=''
+
+  if(Object.keys(porVN).length===0){
+    confList.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px">Nenhuma resposta das perguntas ViaNorte ainda</p>'
+    return
+  }
+
+  ;['vn_0','vn_1','vn_2'].forEach((id,i)=>{
+    const d=porVN[id]||{total:0,risco:0,positivos:0}
+    if(d.total===0) return
+
+    const pctRisco=Math.round((d.risco/d.total)*100)
+    const pctPositivo=Math.round((d.positivos/d.total)*100)
+    const erroTexto=VN_ERROS[i]||id
+
+    // Classificar resultado
+    let resultado,resClass,insightBg,insightCor,insightIcon,insightTxt
+    if(pctRisco>=60){
+      resultado='Confirmado'; resClass='cr-c'
+      insightBg='#F0FFF8'; insightCor='#085041'
+      insightIcon=`<i class="ti ti-check" style="font-size:14px;color:#1D9E75;flex-shrink:0"></i>`
+      insightTxt=`<strong>Confirmado e crítico.</strong> ${pctRisco}% dos motoristas confirmou este problema. Prioridade alta na trilha.`
+    } else if(pctRisco>=30){
+      resultado='Parcial'; resClass='cr-p'
+      insightBg='#FFFBF0'; insightCor='#7A4E00'
+      insightIcon=`<i class="ti ti-info-circle" style="font-size:14px;color:#E09215;flex-shrink:0"></i>`
+      insightTxt=`Comitê pode ter superestimado. ${pctRisco}% confirmou — menor do que o esperado. Foco em motoristas mais novos.`
+    } else {
+      resultado='Refutado'; resClass='cr-r'
+      insightBg='#FFF5F5'; insightCor='#791F1F'
+      insightIcon=`<i class="ti ti-alert-triangle" style="font-size:14px;color:#E24B4A;flex-shrink:0"></i>`
+      insightTxt=`<strong>Gap crítico de percepção.</strong> Apenas ${pctRisco}% confirmou. Investigar se o problema está em outra etapa do processo antes de criar conteúdo.`
+    }
+
+    const corRisco=pctRisco>=60?'#E24B4A':pctRisco>=30?'#E09215':'#1D9E75'
+    const cRisco=pctRisco>=60?'c-r':pctRisco>=30?'c-a':'c-g'
+
+    const div=document.createElement('div')
+    div.className='conf-item'
+    div.innerHTML=`
+      <div class="conf-hdr">
+        <div class="conf-num">${i+1}</div>
+        <div>
+          <p class="conf-src"><i class="ti ti-users" style="font-size:11px"></i>Informado pelo comitê no pré-kick-off</p>
+          <p class="conf-txt">"${erroTexto}"</p>
+        </div>
+        <span class="conf-res ${resClass}">${resultado}</span>
+      </div>
+      <div class="conf-body">
+        <div>
+          <p class="cl-lbl"><i class="ti ti-building-factory-2" style="font-size:11px"></i>O que o comitê classificou</p>
+          <p class="cl-val c-r">Alta</p>
+          <p class="cl-desc">Informado como problema frequente no pré-kick-off</p>
+          <div class="cl-bar-bg"><div class="cl-bar" style="width:90%;background:#E24B4A"></div></div>
+        </div>
+        <div>
+          <p class="cl-lbl"><i class="ti ti-steering-wheel" style="font-size:11px"></i>O que os motoristas confirmaram</p>
+          <p class="cl-val ${cRisco}">${pctRisco}%</p>
+          <p class="cl-desc">${d.total} resposta(s) · ${d.risco} com risco confirmado</p>
+          <div class="cl-bar-bg"><div class="cl-bar" style="width:${pctRisco}%;background:${corRisco}"></div></div>
+        </div>
+      </div>
+      <div class="conf-insight" style="background:${insightBg}">
+        ${insightIcon}
+        <span style="font-size:11px;color:${insightCor};line-height:1.5">${insightTxt}</span>
+      </div>
+    `
+    confList.appendChild(div)
+  })
+}
+
+function atualizarSemaforo(sessoes){
+  // Separar abertura e conclusão
+  const abertura={}, concluidos=new Set(), horarios=[]
+  sessoes.forEach(s=>{
+    if(s.sessao_id.includes('_fim')){
+      if(s.status==='concluido') concluidos.add(s.motorista_id)
+    } else {
+      if(!abertura[s.motorista_id]) abertura[s.motorista_id]=s
+      if(s.horario_acesso!==null) horarios.push(s.horario_acesso)
+    }
+  })
+
+  const motoristas=Object.values(abertura)
+  const total=motoristas.length
+  const conc=concluidos.size
+  const naoConcluiu=total-conc
+
+  // KPIs reais
+  const kpiConc=document.getElementById('kpi-concluiu')
+  const kpiParado=document.getElementById('kpi-parado')
+  if(kpiConc) kpiConc.textContent=conc
+  if(kpiParado) kpiParado.textContent=naoConcluiu
+  const subConc=document.getElementById('kpi-concluiu-sub')
+  if(subConc&&total>0) subConc.textContent=Math.round((conc/total)*100)+'% do total'
+
+  // Lista de motoristas real
+  const lista=document.getElementById('sm-list')
+  if(lista){
+    lista.innerHTML=''
+    if(motoristas.length===0){
+      lista.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px">Nenhum motorista ainda</p>'
+    } else {
+      motoristas.forEach(m=>{
+        const isConcluido=concluidos.has(m.motorista_id)
+        const iniciais=(m.motorista_nome||m.motorista_id||'?').split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase()
+        const horario=m.ts_abertura?new Date(m.ts_abertura).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''
+        const status=isConcluido?'Concluiu':'Em andamento'
+        const statusClass=isConcluido?'ss-g':'ss-a'
+        const row=document.createElement('div')
+        row.className='sm-row'
+        row.innerHTML=`
+          <div class="av">${iniciais}</div>
+          <div><p class="sm-nome">${m.motorista_nome||m.motorista_id}</p><p class="sm-det">${m.rota||'ViaNorte'} · ${horario}</p></div>
+          <span class="sm-badge ${statusClass}">${status}</span>
+          <span class="sm-audio">${m.horario_acesso!==null?m.horario_acesso+'h':'—'}</span>
+        `
+        lista.appendChild(row)
+      })
+    }
+  }
+
+  // Funil real — só temos abriram e concluíram
+  const setFunil=(id,valId,numId,pct,val,cor)=>{
+    const bar=document.getElementById(id)
+    const valEl=document.getElementById(valId)
+    const numEl=document.getElementById(numId)
+    if(bar){bar.style.width=pct+'%';bar.style.background=cor}
+    if(valEl) valEl.textContent=val
+    if(numEl) numEl.textContent=val
+  }
+  const base=Math.max(total,1)
+  setFunil('funil-bar-0','funil-val-0','funil-num-0',100,total,'#2C7BE5')
+  setFunil('funil-bar-1','funil-val-1','funil-num-1',Math.round((total/base)*100),total,'#1a3a5c')
+  setFunil('funil-bar-2','funil-val-2','funil-num-2',Math.round((conc/base)*100),conc,'#1D9E75')
+
+  // Comportamento de tempo — só o que temos
+  const pico=horarios.length>0
+    ? horarios.sort((a,b)=>horarios.filter(h=>h===b).length-horarios.filter(h=>h===a).length)[0]+'h'
+    : '—'
+  const picEl=document.getElementById('tempo-pico')
+  if(picEl) picEl.textContent=pico
+
+  document.getElementById('hora-painel').textContent='Atualizado às '+new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')
+}
+
+function atualizarDores(respostas){
+  // KPIs de respostas e áudio
+  const totalResp=respostas.length
+  const totalAudio=respostas.filter(r=>r.audio_seg>0).length
+  const kpiResp=document.getElementById('kpi-respostas')
+  const kpiAudio=document.getElementById('kpi-audio')
+  const kpiRespSub=document.getElementById('kpi-respostas-sub')
+  const kpiAudioSub=document.getElementById('kpi-audio-sub')
+  if(kpiResp) kpiResp.textContent=totalResp
+  if(kpiAudio) kpiAudio.textContent=totalAudio
+  if(kpiRespSub) kpiRespSub.textContent='no banco'
+  if(kpiAudioSub) kpiAudioSub.textContent=totalResp>0?Math.round((totalAudio/totalResp)*100)+'% do total':'—'
+
+  const tempoAudio=document.getElementById('tempo-audio')
+  const tempoRespostas=document.getElementById('tempo-respostas')
+  if(tempoAudio) tempoAudio.textContent=totalAudio+' de '+totalResp
+  if(tempoRespostas) tempoRespostas.textContent=totalResp+' registradas'
+
+  // Calcular dores
+  const porPerg={}
+  respostas.forEach(r=>{
+    const id=r.pergunta_id
+    if(!porPerg[id]) porPerg[id]={total:0,risco:0,textos:[]}
+    porPerg[id].total++
+    if(r.peso_medio!==null&&r.peso_medio<=40) porPerg[id].risco++
+    if(r.texto_audio&&r.texto_audio.trim()) porPerg[id].textos.push(r.texto_audio)
+  })
+
+  const lista=Object.entries(porPerg)
+    .map(([id,d])=>({id,total:d.total,risco:d.risco,textos:d.textos||[],pct:Math.round((d.risco/d.total)*100)}))
+    .sort((a,b)=>b.pct-a.pct)
+
+  const dorList=document.getElementById('dor-list')
+  if(!dorList) return
+  dorList.innerHTML=''
+
+  if(lista.length===0){
+    dorList.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px">Nenhuma resposta ainda</p>'
+    return
+  }
+
+  lista.forEach(d=>{
+    const cor=d.pct>=60?'#E24B4A':d.pct>=30?'#E09215':'#1D9E75'
+    const cClass=d.pct>=60?'c-r':d.pct>=30?'c-a':'c-g'
+    const origem=d.id.startsWith('vn_')
+      ?'<span class="dor-orig do-vn"><i class="ti ti-building-factory-2" style="font-size:10px"></i> ViaNorte</span>'
+      :'<span class="dor-orig do-bn">Benchmarking</span>'
+
+    // Relatos de áudio desta pergunta
+    const relatos=d.textos.filter(t=>t&&t.trim().length>0)
+    const relatosHTML=relatos.length>0
+      ?`<div style="margin-top:8px;border-top:1px solid rgba(0,0,0,.06);padding-top:8px">
+          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#aaa;margin-bottom:6px">
+            <i class="ti ti-microphone" style="font-size:11px"></i> Relatos em voz (${relatos.length})
+          </p>
+          ${relatos.map((t,i)=>`
+            <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px">
+              <div style="width:22px;height:22px;border-radius:50%;background:#EEF3F9;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#1a3a5c;flex-shrink:0">${i+1}</div>
+              <p style="font-size:12px;color:#333;line-height:1.55;font-style:italic">"${t.trim()}"</p>
+            </div>
+          `).join('')}
+        </div>`
+      :''
+
+    const div=document.createElement('div')
+    div.className='dor-item'
+    div.innerHTML=`
+      <div class="dor-hdr">
+        <span class="dor-nome">${d.id}</span>
+        ${origem}
+        <span class="dor-pct ${cClass}">${d.pct}%</span>
+      </div>
+      <div class="dor-bar-bg"><div class="dor-bar" style="width:${d.pct}%;background:${cor}"></div></div>
+      <p class="dor-det">${d.total} resposta(s) · ${d.risco} com risco confirmado (peso ≤ 40)</p>
+      ${relatosHTML}
+    `
+    dorList.appendChild(div)
+  })
+}
+
+/* ── REALTIME ── */
+function iniciarRealtime(){
+  sb.channel('diagnostico')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'diagnostico_respostas'},()=>carregarDados())
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'diagnostico_sessoes'},()=>carregarDados())
+    .subscribe()
+}
+
+/* LOGIN */
+function entrar(){
+  const v=document.getElementById('senha').value
+  const err=document.getElementById('login-erro')
+  if(v===SENHA){
+    initSupa()
+    mostrarTela('tela-painel')
+    iniciarRelogio()
+    carregarDados()
+    iniciarRealtime()
+  } else {
+    err.style.display='block'
+    document.getElementById('senha').value=''
+    document.getElementById('senha').focus()
+  }
+}
+
+/* TELAS */
+function mostrarTela(id){
+  document.querySelectorAll('.tela').forEach(t=>{
+    t.classList.remove('ativa')
+    t.classList.remove('bloco')
+  })
+  const el=document.getElementById(id)
+  el.classList.add('ativa')
+  // Login usa flex, painel e trilha usam block
+  if(id!=='tela-login') el.classList.add('bloco')
+  window.scrollTo(0,0)
+}
+
+function irParaTrilha(){mostrarTela('tela-trilha')}
+function voltarPainel(){mostrarTela('tela-painel')}
+
+/* TABS */
+function trocarTab(id,el){
+  document.querySelectorAll('.painel').forEach(p=>p.classList.remove('ativo'))
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('ativo'))
+  document.getElementById('p-'+id).classList.add('ativo')
+  el.classList.add('ativo')
+}
+
+/* ENTREGÁVEIS */
+function toggleEnt(hdr){
+  hdr.nextElementSibling.classList.toggle('open')
+}
+
+/* RELÓGIO */
+function iniciarRelogio(){
+  const el=document.getElementById('hora-painel')
+  function atualizar(){
+    const a=new Date()
+    el.textContent='Atualizado às '+a.getHours()+':'+String(a.getMinutes()).padStart(2,'0')
+  }
+  atualizar()
+  setInterval(atualizar,30000)
+}
+
+/* PDF */
+async function gerarPDF(tipo){
+  const overlay=document.getElementById('pdf-overlay')
+  const txt=document.getElementById('pdf-txt')
+  overlay.classList.add('show')
+
+  try{
+    const {jsPDF}=window.jspdf
+    const pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4'})
+    const W=210,H=297,margin=10
+
+    if(tipo==='trilha'){
+      txt.textContent='Capturando Roteiro de Bordo...'
+      const el=document.getElementById('trilha-content')
+      // Abrir todos entregáveis
+      el.querySelectorAll('.ent-body').forEach(b=>b.classList.add('open'))
+      await new Promise(r=>setTimeout(r,300))
+      const canvas=await html2canvas(el,{scale:1.5,useCORS:true,backgroundColor:'#EEF2F7',scrollY:0,windowWidth:960})
+      const img=canvas.toDataURL('image/jpeg',0.92)
+      const ih=canvas.height,iw=canvas.width
+      const printW=W-margin*2
+      const printH=printW*(ih/iw)
+      let y=margin
+      let pos=0
+      while(pos<printH){
+        if(pos>0)pdf.addPage()
+        pdf.addImage(img,'JPEG',margin,margin-(pos),printW,printH)
+        pos+=H-margin*2
+      }
+      pdf.save('RotaEdu-Roteiro-Bordo-V1.pdf')
+    } else {
+      txt.textContent='Capturando painel completo...'
+      // Captura cada aba
+      const abas=[
+        {id:'semaforo',nome:'Semáforo'},
+        {id:'dores',nome:'Dores'},
+        {id:'vies',nome:'Viés'},
+        {id:'vianorte',nome:'ViaNorte'}
+      ]
+      mostrarTela('tela-painel')
+      await new Promise(r=>setTimeout(r,200))
+      let primeiro=true
+      for(const aba of abas){
+        txt.textContent='Capturando aba '+aba.nome+'...'
+        // Ativar aba
+        document.querySelectorAll('.painel').forEach(p=>p.classList.remove('ativo'))
+        document.getElementById('p-'+aba.id).classList.add('ativo')
+        await new Promise(r=>setTimeout(r,300))
+        const el=document.getElementById('p-'+aba.id)
+        const canvas=await html2canvas(el,{scale:1.5,useCORS:true,backgroundColor:'#EEF2F7',scrollY:0,windowWidth:960})
+        const img=canvas.toDataURL('image/jpeg',0.92)
+        const ih=canvas.height,iw=canvas.width
+        const printW=W-margin*2
+        const printH=printW*(ih/iw)
+        if(!primeiro)pdf.addPage()
+        // Header da aba
+        pdf.setFillColor(26,58,92)
+        pdf.rect(0,0,W,12,'F')
+        pdf.setTextColor(255,255,255)
+        pdf.setFontSize(9)
+        pdf.setFont('helvetica','bold')
+        pdf.text('RotaEdu · Painel do Comitê — ViaNorte Transportes',margin,8)
+        pdf.text(aba.nome,W-margin,8,'right')
+        pdf.addImage(img,'JPEG',margin,14,printW,Math.min(printH,H-margin-14))
+        primeiro=false
+      }
+      pdf.save('RotaEdu-Painel-Completo.pdf')
+    }
+  } catch(e){
+    console.error(e)
+    alert('Erro ao gerar PDF. Tente novamente.')
+  } finally {
+    overlay.classList.remove('show')
+  }
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && document.getElementById('tela-trilha').classList.contains('ativa'))
+    voltarPainel()
+})
+</script>
+</body>
+</html>
