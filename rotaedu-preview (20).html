@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="theme-color" content="#1a3a5c"/>
+<title>RotaEdu — Levantamento ViaNorte</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;-webkit-text-size-adjust:100%}
+body{font-family:'Inter',-apple-system,sans-serif;background:#1a3a5c;min-height:100dvh;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+
+/* SHELL */
+.shell{display:flex;justify-content:center;padding:12px 12px 100px}
+.app{width:100%;max-width:420px}
+
+/* BRAND */
+.brand{display:flex;align-items:center;justify-content:space-between;padding:10px 0 12px}
+.brand-nome{font-size:13px;font-weight:700;color:#fff}
+.brand-sub{font-size:10px;color:rgba(255,255,255,.45);margin-top:1px}
+.brand-badge{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.8)}
+
+/* ── ESTRADA ── */
+.estrada-wrap{padding:0 0 14px}
+.estrada-timer{font-size:10px;color:rgba(255,255,255,.5);text-align:center;margin-bottom:10px;font-weight:500;letter-spacing:.03em}
+.estrada-outer{position:relative;height:28px;display:flex;align-items:center;padding:0 10px}
+/* linha de fundo */
+.e-linha-bg{position:absolute;left:10px;right:10px;height:3px;background:rgba(255,255,255,.18);border-radius:2px}
+/* linha de progresso */
+.e-linha-fill{position:absolute;left:10px;height:3px;background:#5DDBAE;border-radius:2px;transition:width .5s cubic-bezier(.34,1.56,.64,1);width:0%}
+/* marcos (pontos) */
+.e-marcos{position:absolute;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center}
+.e-marco{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.2);transition:background .3s;flex-shrink:0}
+.e-marco.ok{background:#5DDBAE}
+/* caminhão — posicionado sobre a linha */
+.e-truck{position:absolute;top:50%;transform:translateY(-50%);font-size:18px;line-height:1;transition:left .5s cubic-bezier(.34,1.56,.64,1);filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));pointer-events:none}
+/* bandeira */
+.e-flag{position:absolute;right:0;top:50%;transform:translateY(-50%);font-size:16px;line-height:1}
+
+/* CARD */
+.card{background:#fff;border-radius:20px;padding:20px;margin-bottom:10px}
+
+/* INTRO */
+.intro-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.intro-av{width:44px;height:44px;border-radius:50%;background:#DCEEFB;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#1a3a5c;flex-shrink:0}
+.intro-nome{font-size:14px;font-weight:700;color:#111}
+.intro-sub{font-size:11px;color:#888;margin-top:2px}
+.intro-timer{display:flex;align-items:center;gap:6px;font-size:11px;color:#888;margin-bottom:12px;font-weight:500}
+.intro-timer i{font-size:14px;color:#1a3a5c}
+.intro-msg{background:#F0F4F8;border-radius:12px;border-left:3px solid #1a3a5c;padding:13px 15px;font-size:13px;color:#222;line-height:1.65;margin-bottom:14px}
+.intro-assinatura{font-size:11px;color:#888;margin-top:8px}
+
+/* OUVIR */
+.ouvir{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F7F8FA;border-radius:10px;cursor:pointer;border:1px solid rgba(0,0,0,.07);margin-bottom:14px;transition:all .15s;user-select:none;-webkit-user-select:none}
+.ouvir:active{background:#EEF3F9;border-color:#1a3a5c}
+.ouvir-ic{width:28px;height:28px;border-radius:50%;background:#DCEEFB;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ouvir-txt{font-size:12px;color:#555;font-weight:500}
+
+/* PERGUNTA */
+.perg-topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.perg-num{font-size:11px;font-weight:700;color:#bbb;letter-spacing:.05em;text-transform:uppercase}
+.perg-timer{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;background:#EEF3F9;color:#1a3a5c;display:flex;align-items:center;gap:4px}
+.dor-tag{display:inline-block;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;margin-bottom:10px}
+.tag-azul{background:#DCEEFB;color:#0C447C}
+.tag-verde{background:#E1F5EE;color:#085041}
+.tag-laranja{background:#FEF3E2;color:#7A4E00}
+.tag-vermelho{background:#FDECEC;color:#791F1F}
+.tag-roxo{background:#EEE8FE;color:#3D2D9E}
+.tag-cinza{background:#F1EFE8;color:#555}
+.perg-txt{font-size:15px;font-weight:700;color:#111;line-height:1.45;margin-bottom:8px}
+
+/* FLASHCARDS */
+.fcs{display:grid;gap:8px;margin-bottom:12px}
+.fcs-2{grid-template-columns:1fr 1fr}
+.fcs-3{grid-template-columns:1fr 1fr 1fr}
+.fc{border:1.5px solid rgba(0,0,0,.08);border-radius:14px;padding:14px 8px;cursor:pointer;background:#fff;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;min-height:84px;justify-content:center;transition:all .18s;user-select:none;-webkit-user-select:none}
+.fc:active{transform:scale(0.94)}
+.fc.sel{border-color:#1a3a5c;background:#EEF3F9;box-shadow:0 0 0 3px rgba(26,58,92,.1)}
+.fc-ic{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fc-txt{font-size:11px;font-weight:600;color:#333;line-height:1.3}
+.fc.sel .fc-txt{color:#1a3a5c}
+.multi-hint{font-size:11px;color:#bbb;margin-bottom:8px;display:flex;align-items:center;gap:5px;font-weight:500}
+
+/* ESCALA */
+.escala-wrap{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.escala-nums{display:flex;gap:5px}
+.ebt{flex:1;height:56px;border-radius:12px;border:1.5px solid rgba(0,0,0,.08);background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all .18s;user-select:none;font-family:inherit}
+.ebt:active{transform:scale(0.92)}
+.ebt.sel{border-color:#1a3a5c;background:#EEF3F9;box-shadow:0 0 0 3px rgba(26,58,92,.1)}
+.ebt-emoji{font-size:20px;line-height:1}
+.ebt-num{font-size:11px;font-weight:600;color:#bbb}
+.ebt.sel .ebt-num{color:#1a3a5c}
+.escala-labels{display:flex;justify-content:space-between}
+.elabel{font-size:10px;color:#bbb;max-width:80px;line-height:1.3;font-weight:500}
+
+/* BTN */
+.btn-prox{width:100%;padding:15px;border:2px solid transparent;border-radius:14px;background:#1a3a5c;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;letter-spacing:.02em;box-shadow:0 4px 16px rgba(26,58,92,.3);margin-top:4px}
+.btn-prox:disabled{background:#E8EDF2;border-color:transparent;color:#9BAFBF;cursor:default;box-shadow:none;opacity:1}
+.btn-prox:not(:disabled):active{transform:scale(0.98)}
+
+/* MICRO FEEDBACK */
+.mf-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(26,58,92,.7);align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.mf-overlay.show{display:flex}
+.mf-card{background:#fff;border-radius:24px;padding:32px 40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:pop-in .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop-in{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+.mf-emoji{font-size:52px;line-height:1;margin-bottom:10px}
+.mf-txt{font-size:18px;font-weight:700;color:#111;margin-bottom:4px}
+.mf-sub{font-size:13px;color:#888}
+
+/* MIC INLINE */
+.mic-btn{width:100%;padding:13px;border:1.5px dashed rgba(26,58,92,.25);border-radius:14px;background:#F7F9FC;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;color:#1a3a5c;font-family:inherit;transition:all .2s;margin-top:8px}
+.mic-btn:active{background:#EEF3F9;border-style:solid}
+.mic-btn.grav{border-color:#E24B4A;background:#FFF0F0;color:#C0392B;border-style:solid;animation:mic-pulse 1.2s infinite}
+.mic-btn.ok{border-color:#1D9E75;background:#F0FFF8;color:#0A6E46;border-style:solid}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,.2)}50%{box-shadow:0 0 0 6px rgba(226,75,74,.08)}}
+.ondas{display:flex;align-items:center;gap:2px}
+.onda{width:3px;height:4px;border-radius:2px;background:#C0392B;animation:pulsar .6s ease-in-out infinite alternate}
+.onda:nth-child(2){animation-delay:.1s}.onda:nth-child(3){animation-delay:.2s}.onda:nth-child(4){animation-delay:.3s}.onda:nth-child(5){animation-delay:.4s}
+@keyframes pulsar{from{height:4px}to{height:14px}}
+
+/* FIM */
+.fim-card{text-align:center;padding:28px 20px}
+.fim-animation{font-size:0;height:64px;display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:20px}
+.fim-truck{font-size:40px;animation:truck-chegou .6s cubic-bezier(.34,1.56,.64,1)}
+.fim-flag{font-size:30px;animation:flag-in .4s .5s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes truck-chegou{from{transform:translateX(-30px) scale(.5);opacity:0}to{transform:translateX(0) scale(1);opacity:1}}
+@keyframes flag-in{from{transform:scale(0)}to{transform:scale(1)}}
+.fim-titulo{font-size:22px;font-weight:700;color:#111;margin-bottom:8px;line-height:1.3}
+.fim-sub{font-size:13px;color:#666;line-height:1.65;margin-bottom:18px}
+.fim-promessa{background:#EEF3F9;border-radius:14px;padding:14px 16px;font-size:12px;color:#1a3a5c;line-height:1.65;text-align:left}
+.fim-promessa strong{display:block;font-size:13px;font-weight:700;color:#0C447C;margin-bottom:4px}
+.fim-bg{transition:background 1.2s}
+.fim-bg.verde{background:#0a5c40}
+
+/* TELA SWAP */
+.tela{display:none}
+.tela.ativa{display:block}
+#tela-intro.ativa,#tela-perguntas.ativa,#tela-fim.ativa{display:block}
+
+/* TRANSIÇÃO CARD */
+.card-anim{animation:slide-in .3s cubic-bezier(.4,0,.2,1)}
+@keyframes slide-in{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+@media(max-width:380px){.perg-txt{font-size:14px}.fcs-3{grid-template-columns:1fr 1fr 1fr}.fc{min-height:72px}.ebt{height:50px}}
+@media(min-width:600px){.shell{padding:24px 12px 100px}.app{max-width:440px}}
+</style>
+</head>
+<body>
+
+<!-- MICRO FEEDBACK OVERLAY -->
+<div class="mf-overlay" id="mf-overlay">
+  <div class="mf-card">
+    <div class="mf-emoji" id="mf-emoji">👍</div>
+    <p class="mf-txt" id="mf-txt">Boa!</p>
+    <p class="mf-sub" id="mf-sub">Próxima já vem...</p>
+  </div>
+</div>
+
+<!-- mic inline no card -->
+
+<div class="shell" id="shell">
+<div class="app" id="app-vianorte">
+
+  <!-- ═══ INTRO ═══ -->
+  <div class="tela ativa" id="tela-intro">
+    <div class="brand">
+      <div><p class="brand-nome">ViaNorte Transportes</p><p class="brand-sub">Levantamento de bordo · <span class="ano-atual"></span></p></div>
+      <span class="brand-badge">Confidencial</span>
+    </div>
+    <div class="card">
+      <div class="intro-row">
+        <div class="intro-av" id="intro-av">JR</div>
+        <div><p class="intro-nome" id="intro-nome">José Rodrigues</p><p class="intro-sub" id="intro-sub">Rota Atacadão · SP</p></div>
+      </div>
+      <div class="intro-timer"><i class="ti ti-clock"></i><span>Leva menos de 4 minutos · 6 perguntas rápidas</span></div>
+      <div class="intro-msg">
+        José, a ViaNorte preparou esse levantamento pra entender melhor como te apoiar nas suas entregas. Pode tocar nas figuras ou falar pelo microfone — do jeito que for mais fácil pra você.
+        <p class="intro-assinatura">— Carlos Mendes, Gestor de Operações · ViaNorte</p>
+      </div>
+      <div class="ouvir" onclick="falar('José, a ViaNorte preparou esse levantamento pra entender melhor como te apoiar nas suas entregas. Pode tocar nas figuras ou falar pelo microfone, do jeito que for mais fácil pra você.')">
+        <div class="ouvir-ic"><i class="ti ti-volume" style="font-size:14px;color:#185FA5"></i></div>
+        <span class="ouvir-txt">Ouvir a mensagem</span>
+      </div>
+      <button class="btn-prox" onclick="iniciar()">Começar levantamento</button>
+    </div>
+  </div>
+
+  <!-- ═══ PERGUNTAS ═══ -->
+  <div class="tela" id="tela-perguntas">
+    <div class="brand">
+      <div><p class="brand-nome">ViaNorte Transportes</p><p class="brand-sub">Levantamento de bordo · <span class="ano-atual"></span></p></div>
+      <span class="brand-badge">Confidencial</span>
+    </div>
+
+    <!-- ESTRADA -->
+    <div class="estrada-wrap">
+      <p class="estrada-timer" id="estrada-timer">⏱ Mais 6 perguntas</p>
+      <div class="estrada-outer">
+        <div class="e-linha-bg"></div>
+        <div class="e-linha-fill" id="e-fill"></div>
+        <div class="e-marcos" id="e-marcos"></div>
+        <div class="e-truck" id="e-truck" style="left:0px">🚛</div>
+        <div class="e-flag">🏁</div>
+      </div>
+    </div>
+
+    <!-- CARD DA PERGUNTA -->
+    <div class="card" id="card-pergunta">
+      <!-- conteúdo injetado via JS -->
+    </div>
+  </div>
+
+  <!-- ═══ FIM ═══ -->
+  <div class="tela" id="tela-fim">
+    <div class="fim-bg" id="fim-bg">
+      <div class="brand">
+        <div><p class="brand-nome">ViaNorte Transportes</p><p class="brand-sub">Levantamento concluído</p></div>
+      </div>
+      <div class="card fim-card">
+        <div class="fim-animation">
+          <span class="fim-truck">🚛</span>
+          <span class="fim-flag">🏁</span>
+        </div>
+        <p class="fim-titulo" id="fim-titulo">Entrega feita,<br>José!</p>
+        <p class="fim-sub">Você ajudou a ViaNorte a melhorar. Suas respostas já chegaram pra equipe.</p>
+        <div class="fim-promessa">
+          <strong>O que vem a seguir:</strong>
+          Em breve você vai receber o Roteiro de Bordo da ViaNorte — tudo que você precisa saber antes de chegar em cada cliente.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+</div><!-- /shell -->
+
+<script>
+/* ── DADOS ── */
+const MOTORISTA = {nome:'José Rodrigues',iniciais:'JR',rota:'Rota Atacadão · SP'}
+
+const MICRO_FB = [
+  {e:'👍',t:'Boa, José!',s:'Mais 5 perguntas.'},
+  {e:'🔥',t:'Isso aí!',s:'Tá chegando lá.'},
+  {e:'💪',t:'Muito bem!',s:'Metade do caminho feito.'},
+  {e:'⚡',t:'Rápido!',s:'Só mais 2 perguntas.'},
+  {e:'🎯',t:'Quase lá!',s:'Última pergunta.'},
+]
+
+const BENCH = [
+  {id:'atrasos',dor:'Dor · Atrasos',dc:'tag-vermelho',tipo:'fc',
+   txt:'Você sabe o horário limite pra chegar no destino?',
+   au:'Você sabe o horário limite pra chegar no destino?',
+   cards:[
+    {ic:'ti-clock-check',bg:'#E1F5EE',cor:'#085041',txt:'Sei antes\nde sair',peso:100},
+    {ic:'ti-clock-exclamation',bg:'#FEF3E2',cor:'#7A4E00',txt:'Fico sabendo\nno caminho',peso:50},
+    {ic:'ti-map-pin-question',bg:'#FDECEC',cor:'#791F1F',txt:'Descubro só\nquando chego',peso:0},
+   ]},
+  {id:'padronizacao',dor:'Dor · Padronização',dc:'tag-roxo',tipo:'fc',
+   txt:'Quando começou na ViaNorte, você recebeu alguma orientação?',
+   au:'Quando começou na ViaNorte, você recebeu alguma orientação de como trabalhar?',
+   cards:[
+    {ic:'ti-school',bg:'#EEE8FE',cor:'#3D2D9E',txt:'Fiz um\ntreinamento',peso:100},
+    {ic:'ti-ear',bg:'#DCEEFB',cor:'#0C447C',txt:'Só no\nboca a boca',peso:60},
+    {ic:'ti-road',bg:'#FEF3E2',cor:'#7A4E00',txt:'Aprendi\nsozinho',peso:30},
+    {ic:'ti-circle-off',bg:'#FDECEC',cor:'#791F1F',txt:'Não recebi\nnada',peso:0},
+   ]},
+  {id:'procedimentos',dor:'Dor · Procedimentos',dc:'tag-cinza',tipo:'esc',
+   txt:'Quanto você conhece o procedimento de um CD que nunca foi antes?',
+   au:'De um a cinco, quanto você conhece o procedimento de um centro de distribuição que nunca foi antes?',
+   niveis:[
+    {e:'😟',n:'1',txt:'Não\nsei nada',peso:0},
+    {e:'😐',n:'2',txt:'Sei\npouco',peso:25},
+    {e:'🙂',n:'3',txt:'Sei\nalgo',peso:50},
+    {e:'😊',n:'4',txt:'Sei\nbastante',peso:75},
+    {e:'😎',n:'5',txt:'Sei de\ncabeça',peso:100},
+   ]},
+  {id:'comunicacao',dor:'Dor · Comunicação',dc:'tag-laranja',tipo:'fc',
+   txt:'Se tiver problema na estrada, o que você faz?',
+   au:'Se tiver um problema na estrada, como nota errada ou CD fechado, o que você faz?',
+   cards:[
+    {ic:'ti-phone-call',bg:'#DCEEFB',cor:'#0C447C',txt:'Ligo pro\ndespachante',peso:100},
+    {ic:'ti-brand-whatsapp',bg:'#E1F5EE',cor:'#085041',txt:'Mando\nmensagem',peso:80},
+    {ic:'ti-user-question',bg:'#FEF3E2',cor:'#7A4E00',txt:'Resolvo\nsozinho',peso:20},
+    {ic:'ti-help-circle',bg:'#FDECEC',cor:'#791F1F',txt:'Não sei\npra quem ligar',peso:0},
+   ]},
+]
+
+const P_DESEJO = {
+  id:'desejo',dor:'Pergunta 1 · O que você precisa',dc:'tag-azul',tipo:'multi',
+  txt:'Numa entrega nova, o que você mais gostaria de saber antes de chegar?',
+  hint:'Pode escolher mais de uma',
+  au:'Numa entrega nova, o que você mais gostaria de saber antes de chegar? Pode escolher mais de uma opção.',
+  cards:[
+    {ic:'ti-map-2',bg:'#DCEEFB',cor:'#0C447C',txt:'Como entrar\nno CD'},
+    {ic:'ti-file-description',bg:'#FEF3E2',cor:'#7A4E00',txt:'Quais documentos\nlevar'},
+    {ic:'ti-clock',bg:'#E1F5EE',cor:'#085041',txt:'Horário e\njanela de entrega'},
+    {ic:'ti-phone-call',bg:'#EEE8FE',cor:'#3D2D9E',txt:'Quem ligar\nse der problema'},
+    {ic:'ti-package',bg:'#FDECEC',cor:'#791F1F',txt:'Como registrar\na entrega'},
+  ]
+}
+
+function gerarVN(erros){
+  return erros.map((e,i)=>({
+    id:'vn_'+i,dor:'Pergunta · ViaNorte',dc:'tag-azul',tipo:'fc',
+    txt:e+' — isso já aconteceu com você?',
+    au:e+'. Isso já aconteceu com você?',
+    cards:[
+      {ic:'ti-circle-check',bg:'#E1F5EE',cor:'#085041',txt:'Nunca\naconteceu',peso:100},
+      {ic:'ti-alert-triangle',bg:'#FEF3E2',cor:'#7A4E00',txt:'Aconteceu\numa vez',peso:40},
+      {ic:'ti-flame',bg:'#FDECEC',cor:'#791F1F',txt:'Acontece\ncom frequência',peso:0},
+    ]
+  }))
+}
+
+function sortear(arr,n){
+  const s=[...arr]
+  for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]]}
+  return s.slice(0,n)
+}
+
+// Ano sempre atualizado
+document.addEventListener('DOMContentLoaded',()=>{
+  const ano=new Date().getFullYear()
+  document.querySelectorAll('.ano-atual').forEach(el=>el.textContent=ano)
+})
+
+/* ── SUPABASE ── */
+const SUPA_URL='https://iluchxqmiddawfzdzaem.supabase.co'
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsdWNoeHFtaWRkYXdmemR6YWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NTI2NTksImV4cCI6MjA5NzEyODY1OX0.XSpyhUwxxLUXLdMmT_MV6xO_mhXZWM9dddu0B2boPaE'
+const {createClient}=supabase
+const sb=createClient(SUPA_URL,SUPA_KEY)
+
+async function dbSessao(payload){
+  try{
+    const r=await sb.from('diagnostico_sessoes').insert([payload])
+    if(r.error){
+      console.error('❌ DB sessao erro:',r.error.code, r.error.message)
+    } else {
+      console.log('✅ Sessão salva — status:',payload.status||'aberto')
+    }
+  }catch(e){ console.error('❌ Sessao fetch err:',e) }
+}
+async function dbResposta(payload){
+  try{
+    const r=await sb.from('diagnostico_respostas').insert([payload])
+    if(r.error){
+      console.error('❌ DB resposta erro:',r.error.code, r.error.message, r.error.details)
+    } else {
+      console.log('✅ Resposta salva — pergunta',payload.pergunta_indice+1)
+    }
+  }catch(e){ console.error('❌ Resp fetch err:',e) }
+}
+
+/* ── STATE ── */
+let PERGUNTAS=[]
+let atual=0
+let sel=[]
+let audioSeg=0
+let gravando=false
+let timerGrav=null
+let segsGrav=0
+let SESSAO_ID=''
+let MOT_ID=''
+let MOT_NOME=''
+let MOT_ROTA=''
+let avancando=false
+
+/* ── TELAS ── */
+function mostrarTela(id){
+  document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'))
+  document.getElementById(id).classList.add('ativa')
+  window.scrollTo(0,0)
+}
+
+/* ── INICIAR ── */
+function lerParams(){
+  const p=new URLSearchParams(window.location.search)
+  MOT_ID=p.get('id')||'MOT_000'
+  MOT_NOME=decodeURIComponent(p.get('nome')||'Motorista')
+  MOT_ROTA=decodeURIComponent(p.get('rota')||'ViaNorte')
+  SESSAO_ID=MOT_ID+'_'+Date.now()
+}
+
+function iniciar(){
+  lerParams()
+  const VN_ERROS=[
+    'Motorista chega no CD sem saber onde é a doca de descarga',
+    'Nota fiscal com dado errado só descoberto na guarita',
+    'Motorista não registra ocorrência quando tem problema',
+  ]
+  PERGUNTAS=[P_DESEJO,...gerarVN(VN_ERROS),...sortear(BENCH,2)]
+  mostrarTela('tela-perguntas')
+  construirEstrada()
+  renderPergunta(0)
+  // Salvar abertura da sessão
+  dbSessao({
+    sessao_id:SESSAO_ID,
+    motorista_id:MOT_ID,
+    motorista_nome:MOT_NOME,
+    rota:MOT_ROTA,
+    ts_abertura:new Date().toISOString(),
+    dispositivo:navigator.userAgent,
+    conexao:navigator.connection?.effectiveType||'desconhecido',
+    horario_acesso:new Date().getHours(),
+    status:'aberto'
+  })
+}
+
+/* ── ESTRADA ── */
+function construirEstrada(){
+  const cont=document.getElementById('e-marcos')
+  cont.innerHTML=''
+  PERGUNTAS.forEach((_,i)=>{
+    const d=document.createElement('div')
+    d.className='e-marco'
+    d.id='marco-'+i
+    cont.appendChild(d)
+  })
+  moverTruck(0)
+}
+
+function moverTruck(indice){
+  const total=PERGUNTAS.length
+  // pct de progresso: 0 no início, chega a ~90% na última (deixa espaço pra bandeira)
+  const pct = total<=1 ? 0 : (indice/(total-1))*88
+  const outer=document.querySelector('.estrada-outer')
+  const outerW=outer.offsetWidth
+  // largura usável (sem padding de 10px cada lado)
+  const usavel=outerW-20
+  const px=10+(pct/100)*usavel
+
+  document.getElementById('e-fill').style.width=pct+'%'
+  document.getElementById('e-truck').style.left=px+'px'
+
+  // Atualizar marcos
+  for(let i=0;i<total;i++){
+    const m=document.getElementById('marco-'+i)
+    if(m) m.classList.toggle('ok',i<indice)
+  }
+
+  // Timer
+  const restante=total-indice
+  document.getElementById('estrada-timer').textContent=
+    restante>1?'⏱ Mais '+restante+' perguntas':'⏱ Última pergunta!'
+}
+
+/* ── RENDER PERGUNTA ── */
+function renderPergunta(indice){
+  sel=[]
+  audioSeg=0
+  const p=PERGUNTAS[indice]
+  const card=document.getElementById('card-pergunta')
+
+  // Animação de entrada
+  card.classList.remove('card-anim')
+  void card.offsetWidth
+  card.classList.add('card-anim')
+
+  card.innerHTML=''
+
+  // Topo
+  const topo=ce('div','perg-topo')
+  topo.innerHTML=`<span class="perg-num">Pergunta ${indice+1} de ${PERGUNTAS.length}</span><span class="perg-timer"><i class="ti ti-clock" style="font-size:11px"></i>${Math.max(1,Math.ceil((PERGUNTAS.length-indice)*0.5))}min</span>`
+  card.appendChild(topo)
+
+  // Tag
+  const tag=ce('span','dor-tag '+p.dc)
+  tag.textContent=p.dor
+  card.appendChild(tag)
+
+  // Pergunta
+  const ptxt=ce('p','perg-txt')
+  ptxt.textContent=p.txt
+  card.appendChild(ptxt)
+
+  // Ouvir — SEMPRE renderizado com o áudio da pergunta atual
+  const ouvir=ce('div','ouvir')
+  ouvir.innerHTML=`<div class="ouvir-ic"><i class="ti ti-volume" style="font-size:14px;color:#185FA5"></i></div><span class="ouvir-txt">Ouvir a pergunta</span>`
+  const auTxt=p.au||p.txt
+  ouvir.addEventListener('click',()=>falar(auTxt))
+  card.appendChild(ouvir)
+
+  // Opções
+  if(p.tipo==='multi'||p.tipo==='fc'){
+    if(p.tipo==='multi'){
+      const hint=ce('p','multi-hint')
+      hint.innerHTML=`<i class="ti ti-info-circle" style="font-size:12px"></i> ${p.hint}`
+      card.appendChild(hint)
+    }
+    const n=p.cards.length
+    const grid=ce('div','fcs '+(n<=3?'fcs-'+n:'fcs-2'))
+    p.cards.forEach((c,i)=>{
+      const fc=ce('div','fc')
+      fc.innerHTML=`<div class="fc-ic" style="background:${c.bg}"><i class="ti ${c.ic}" style="font-size:22px;color:${c.cor}"></i></div><span class="fc-txt">${c.txt.replace('\n','<br>')}</span>`
+      fc.addEventListener('click',()=>{
+        if(p.tipo==='multi'){
+          fc.classList.toggle('sel')
+          sel=[...grid.querySelectorAll('.fc.sel')].map(f=>parseInt(f.dataset.i))
+        } else {
+          grid.querySelectorAll('.fc').forEach(f=>f.classList.remove('sel'))
+          fc.classList.add('sel')
+          sel=[i]
+        }
+        fc.dataset.i=i
+        tocarSom()
+        falar(c.txt.replace('\n',' '))
+        habBtn()
+      })
+      fc.dataset.i=i
+      grid.appendChild(fc)
+    })
+    card.appendChild(grid)
+  } else if(p.tipo==='esc'){
+    const wrap=ce('div','escala-wrap')
+    const nums=ce('div','escala-nums')
+    p.niveis.forEach((n,i)=>{
+      const btn=document.createElement('button')
+      btn.className='ebt'
+      btn.innerHTML=`<span class="ebt-emoji">${n.e}</span><span class="ebt-num">${n.n}</span>`
+      btn.addEventListener('click',()=>{
+        nums.querySelectorAll('.ebt').forEach(b=>b.classList.remove('sel'))
+        btn.classList.add('sel')
+        sel=[i]
+        tocarSom()
+        falar(n.txt.replace('\n',' '))
+        habBtn()
+      })
+      nums.appendChild(btn)
+    })
+    const labels=ce('div','escala-labels')
+    labels.innerHTML=`<span class="elabel">${p.niveis[0].txt.replace('\n','<br>')}</span><span class="elabel" style="text-align:right">${p.niveis[4].txt.replace('\n','<br>')}</span>`
+    wrap.appendChild(nums)
+    wrap.appendChild(labels)
+    card.appendChild(wrap)
+  }
+
+  // Separador de áudio
+  const sep=ce('div','')
+  sep.style.cssText='display:flex;align-items:center;gap:8px;margin:12px 0 0'
+  sep.innerHTML='<div style="flex:1;height:1px;background:rgba(0,0,0,.08)"></div><span style="font-size:10px;color:#bbb;white-space:nowrap;font-weight:500">ou fale pelo microfone 🎙️</span><div style="flex:1;height:1px;background:rgba(0,0,0,.08)"></div>'
+  card.appendChild(sep)
+
+  // Botão de microfone inline
+  const micBtn=document.createElement('button')
+  micBtn.className='mic-btn'
+  micBtn.id='mic-inline'
+  micBtn.innerHTML='<i class="ti ti-microphone" style="font-size:16px"></i>Toque aqui para falar sua resposta'
+  micBtn.addEventListener('click', toggleMic)
+  card.appendChild(micBtn)
+
+  // Criar botão dentro do card
+  const btn=document.createElement('button')
+  btn.className='btn-prox'
+  btn.id='btn-prox'
+  btn.disabled=true
+  btn.textContent=(indice+1<PERGUNTAS.length)?'Próxima':'Concluir'
+  btn.style.marginTop='12px'
+  btn.addEventListener('click', ()=>{
+    btn.disabled=true
+    avancar()
+  })
+  card.appendChild(btn)
+
+  // Resetar mic
+  resetMic()
+  // Mostrar dica do mic apenas na primeira pergunta
+  if(indice===0){
+    const dica=document.getElementById('mic-dica')
+    if(dica){
+      dica.style.animation='none'
+      void dica.offsetWidth
+      dica.style.animation='dica-aparecer 3s 1s ease forwards'
+    }
+  }
+}
+
+function habBtn(){
+  document.getElementById('btn-prox').disabled=sel.length===0&&audioSeg===0
+}
+
+function ce(tag,cls){const e=document.createElement(tag);e.className=cls;return e}
+
+/* ── AVANÇAR ── */
+function avancar(){
+  if(avancando) return
+  avancando=true
+  const pergAtual=PERGUNTAS[atual]
+  // Montar respostas
+  let respostas=[]
+  if(pergAtual.tipo==='esc'){
+    sel.forEach(i=>respostas.push({valor:pergAtual.niveis[i].n,peso:pergAtual.niveis[i].peso}))
+  } else {
+    sel.forEach(i=>respostas.push({valor:(pergAtual.cards[i].txt||'').replace('\n',' '),peso:pergAtual.cards[i].peso??50}))
+  }
+  const pesoMedio=respostas.length?Math.round(respostas.reduce((a,r)=>a+(r.peso??50),0)/respostas.length):50
+  // Salvar no Supabase
+  dbResposta({
+    sessao_id:SESSAO_ID,
+    motorista_id:MOT_ID,
+    motorista_nome:MOT_NOME,
+    pergunta_id:pergAtual.id||pergAtual.dor,
+    pergunta_indice:atual,
+    respostas:respostas,
+    peso_medio:pesoMedio,
+    audio_seg:audioSeg,
+    texto_audio:textoAudio||null,
+    ts_resposta:new Date().toISOString()
+  })
+
+  const isLast=atual+1>=PERGUNTAS.length
+
+  if(!isLast){
+    const fb=MICRO_FB[Math.min(atual,MICRO_FB.length-1)]
+    showFeedback(fb,()=>{
+      atual++
+      avancando=false
+      moverTruck(atual)
+      renderPergunta(atual)
+    })
+  } else {
+    avancando=false
+    mostrarFim()
+  }
+}
+
+/* ── MICRO FEEDBACK ── */
+function showFeedback(fb,cb){
+  const ov=document.getElementById('mf-overlay')
+  document.getElementById('mf-emoji').textContent=fb.e
+  document.getElementById('mf-txt').textContent=fb.t
+  document.getElementById('mf-sub').textContent=fb.s
+  ov.classList.add('show')
+  falar(fb.t+' '+fb.s)
+  setTimeout(()=>{ov.classList.remove('show');cb()},1400)
+}
+
+/* ── FIM ── */
+function mostrarFim(){
+  mostrarTela('tela-fim')
+  moverTruck(PERGUNTAS.length)
+  setTimeout(()=>{
+    document.getElementById('fim-bg').classList.add('verde')
+  },400)
+  falar('Entrega feita! Você ajudou a ViaNorte a melhorar. Suas respostas já chegaram pra equipe.')
+  // Salvar conclusão
+  dbSessao({
+    sessao_id:SESSAO_ID+'_fim',
+    motorista_id:MOT_ID,
+    motorista_nome:MOT_NOME,
+    ts_conclusao:new Date().toISOString(),
+    total_respostas:PERGUNTAS.length,
+    status:'concluido'
+  })
+}
+
+/* ── MIC ── */
+/* ── SPEECH TO TEXT ── */
+let recognition=null
+let textoAudio=''
+
+function iniciarSpeech(){
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition
+  if(!SpeechRecognition) return null
+  const r=new SpeechRecognition()
+  r.lang='pt-BR'
+  r.continuous=true
+  r.interimResults=true
+  return r
+}
+
+function toggleMic(){
+  const btn=document.getElementById('mic-inline')
+  if(!btn) return
+
+  if(!gravando&&audioSeg===0){
+    // Pedir permissão e iniciar
+    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition
+    if(!SpeechRecognition){
+      // Fallback: browser não suporta
+      iniciarGravacaoSimulada(btn)
+      return
+    }
+
+    gravando=true; segsGrav=0; textoAudio=''
+    btn.classList.add('grav')
+
+    // UI de gravando
+    btn.innerHTML=''
+    const ondas=document.createElement('div')
+    ondas.className='ondas'
+    ondas.innerHTML='<div class="onda" style="height:5px"></div><div class="onda"></div><div class="onda"></div><div class="onda"></div><div class="onda" style="height:5px"></div>'
+    btn.appendChild(ondas)
+    const sp=document.createElement('span')
+    sp.id='mic-sp'
+    sp.textContent=' Ouvindo... toque pra parar'
+    btn.appendChild(sp)
+
+    timerGrav=setInterval(()=>{
+      segsGrav++
+      const s=document.getElementById('mic-sp')
+      if(s) s.textContent=' '+segsGrav+'s — toque pra parar'
+    },1000)
+
+    // Iniciar reconhecimento
+    recognition=iniciarSpeech()
+    if(!recognition){ iniciarGravacaoSimulada(btn); return }
+
+    recognition.onresult=(e)=>{
+      let interim='', final=''
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal) final+=e.results[i][0].transcript
+        else interim+=e.results[i][0].transcript
+      }
+      if(final) textoAudio+=final+' '
+      // Mostrar texto em tempo real no card
+      let preview=document.getElementById('audio-preview')
+      if(!preview){
+        preview=document.createElement('div')
+        preview.id='audio-preview'
+        preview.style.cssText='margin-top:8px;padding:8px 10px;background:#F0F4F8;border-radius:8px;font-size:12px;color:#333;line-height:1.5;font-style:italic;min-height:36px'
+        btn.parentElement.insertBefore(preview,btn.nextSibling)
+      }
+      preview.textContent='"'+(textoAudio+interim).trim()+'"'
+    }
+
+    recognition.onerror=(e)=>{
+      console.warn('Speech erro:',e.error)
+      if(e.error==='not-allowed'){
+        pararMic(btn,'❌ Permissão negada — toque nas opções do flashcard')
+      }
+    }
+
+    recognition.start()
+
+  } else if(gravando){
+    pararMic(btn, null)
+  }
+}
+
+function pararMic(btn, msgErro){
+  gravando=false
+  clearInterval(timerGrav)
+  if(recognition){ try{recognition.stop()}catch(e){} recognition=null }
+  audioSeg=segsGrav
+  textoAudio=textoAudio.trim()
+
+  if(msgErro){
+    btn.classList.remove('grav')
+    btn.innerHTML='<i class="ti ti-x" style="font-size:16px"></i> '+msgErro
+    return
+  }
+
+  btn.classList.remove('grav'); btn.classList.add('ok')
+  if(textoAudio){
+    btn.innerHTML='<i class="ti ti-check" style="font-size:16px"></i> Áudio de '+segsGrav+'s salvo ✓'
+  } else {
+    btn.innerHTML='<i class="ti ti-check" style="font-size:16px"></i> '+segsGrav+'s registrados ✓'
+  }
+  habBtn()
+}
+
+function iniciarGravacaoSimulada(btn){
+  // Fallback para browsers sem Speech API
+  gravando=true; segsGrav=0; textoAudio=''
+  btn.classList.add('grav')
+  btn.innerHTML=''
+  const ondas=document.createElement('div')
+  ondas.className='ondas'
+  ondas.innerHTML='<div class="onda" style="height:5px"></div><div class="onda"></div><div class="onda"></div><div class="onda"></div><div class="onda" style="height:5px"></div>'
+  btn.appendChild(ondas)
+  const sp=document.createElement('span')
+  sp.id='mic-sp'
+  sp.textContent=' Gravando... toque pra parar'
+  btn.appendChild(sp)
+  timerGrav=setInterval(()=>{
+    segsGrav++
+    const s=document.getElementById('mic-sp')
+    if(s) s.textContent=' '+segsGrav+'s — toque pra parar'
+  },1000)
+}
+
+function resetMic(){
+  if(gravando){
+    clearInterval(timerGrav)
+    if(recognition){try{recognition.stop()}catch(e){} recognition=null}
+    gravando=false
+  }
+  audioSeg=0; segsGrav=0; textoAudio=''
+  // mic-inline é recriado a cada renderPergunta junto com o preview
+}
+
+/* ── ÁUDIO TTS ── */
+function falar(txt){
+  if(!window.speechSynthesis) return
+  speechSynthesis.cancel()
+  setTimeout(()=>{
+    const u=new SpeechSynthesisUtterance(txt)
+    u.lang='pt-BR'; u.rate=0.88
+    speechSynthesis.speak(u)
+  },50)
+}
+
+/* ── SOM CONFIRMAÇÃO ── */
+function tocarSom(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)()
+    const osc=ctx.createOscillator()
+    const gain=ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.frequency.setValueAtTime(880,ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(1100,ctx.currentTime+0.08)
+    gain.gain.setValueAtTime(0.1,ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.15)
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.15)
+  }catch(e){}
+}
+
+/* ENTER key */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!document.getElementById('btn-prox')?.disabled) avancar()
+})
+</script>
+</body>
+</html>
