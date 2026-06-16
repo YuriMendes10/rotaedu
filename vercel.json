@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/motorista", "destination": "/rotaedu-preview.html" },
+    { "source": "/painel", "destination": "/rotaedu-painel.html" }
+  ]
+}
